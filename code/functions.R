@@ -17,7 +17,7 @@ CalcBaseMort.go <- function(th, x) {
 }
 
 CalcBaseMort.lo <- function(th, x) {
-  (exp(th[, 1] + th[, 2] * x)) / 
+  (exp( )) / 
     (1 + th[, 3] * exp(th[, 1]) / th[, 2] * (exp(th[, 2] * x) - 1))
 }
 
@@ -39,7 +39,7 @@ CalcMort.ma <- function(th, x) {
 CalcMort.bt <- function(th, x) {
   thb <- th[, -c(1:3)]
   class(thb) <- class(th)
-  th[, 1] * exp(-th[, 2] * x) + th[, 3] + CalcBaseMort(thb, x)
+  exp(th[, 1] - th[, 2] * x) + th[, 3] + CalcBaseMort(thb, x)
 }
 
 CalcBaseSurv <- function(th, ...) UseMethod("CalcBaseSurv")
@@ -81,7 +81,7 @@ CalcSurv.ma <- function(th, x) {
 CalcSurv.bt <- function(th, x) {
   thb <- th[, -c(1:3)]
   class(thb) <- class(th)
-  Sx0 <- Sx0 <- exp(exp(th[, 1]) / th[, 2] * (exp(-th[, 2] * x) - 1) - th[, 3] * x)
+  Sx0 <- exp(exp(th[, 1]) / th[, 2] * (exp(-th[, 2] * x) - 1) - th[, 3] * x)
   idNoTh12 <- which((th[, 1] != 0 | th[, 1] == 0)) 
   return(Sx0 * CalcBaseSurv(thb, x))
 }
@@ -126,7 +126,7 @@ CalcCovTheta <- function(th, covars = NA) {
   } else {
     theta <- covars %*% th
   }
-  class(theta) <- class(th)
+    class(theta) <- class(th)
   return(theta)
 }
 
