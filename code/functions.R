@@ -195,3 +195,179 @@ SetDefaultTheta  <- function() {
                         low = lowTh, jitter = jitter)
   return(defaultTheta)
 }
+
+
+
+
+
+# MCMC:
+RunMCMC <- function(sim) {
+  xNow <- xStart
+  sexFemNow <- sexFemStart
+  idMnow <- idMstart
+  idNMnow <- idNMstart
+  covarsNow <- covarsStart
+  if (sim == 1) {
+    thetaNow <- thetaStart
+  } else {
+    rm(".Random.seed", envir = .GlobalEnv); runif(1)
+    thetaNow <- matrix(rtnorm(npars, t(thetaStart), rep(defPars$jitter, 
+                                                       each = ncovs), 
+                             low = rep(defPars$low, ncovs)), 2, 5, byrow = TRUE, 
+                      dimnames = dimnames(thetaStart)) 
+    class(thetaNow) <- class(thetaStart)
+  }
+  
+  thetaMatNow <- CalcCovTheta(thetaNow, covarsNow)
+  likeMortNow <- CalcLikeMort(xStart, thetaMatNow)
+  fullLikeNow <- CalcFullLike(xStart, thetaMatNow, idM = idMnow, 
+                              idNM = idNMnow)
+  parPostNow <- sum(fullLikeNow) + 
+    sum(dtnorm(c(thetaNow), 
+               rep(defPars$priorMean, each = ncovs),
+               rep(defPars$priorSd, each = ncovs), 
+               low = rep(defPars$low, each = ncovs), log = TRUE))
+  agePostNow <- fullLikeNow + CalcPriorAgeDist(xNow, thetaMatNow, exPrior)
+  
+  # Output matrices and vectors:
+  parMat <- matrix(0, niter, npars, dimnames = list(NULL, thetaNames))
+  namesMat <- matrix(thetaNames, ncovs, defPars$len, byrow = TRUE)
+  parPostVec <- rep(0, niter)
+  agePostMat <- matrix(0, niter, n)
+  sexMat <- matrix(NA, niter, length(idNoSex))
+  
+  # Objects for Dynamic Metropolis:
+  jumpMat <- jumpMatStart
+  if (UpdJumps) {
+    updMat <- parMat
+    iterUpd <- 100
+    updTarg <- 0.25
+    jumpLargeMat <- parMat[0, ]
+  }
+  
+  # Individual runs:
+  for (iter in 1:niter) {
+    
+    # 1. Propose parameters:
+    for (pp in 1:npars) {
+      thetaNew <- thetaNow
+      thetaNew[pp] <- rtnorm(1, thetaNow[pp], jumpMat[pp], 
+                             low = rep(defPars$low, each = ncovs)[pp])
+      thetaMatNew <- CalcCovTheta(thetaNew, covarsNow)
+      likeMortNew <- CalcLikeMort(xNow, thetaMatNew)
+      fullLikeNew <- CalcFullLike(xNow, thetaMatNew, idM = idMnow, 
+                                  idNM = idNMnow)
+      
+      parPostNew <- sum(fullLikeNew) + 
+        sum(dtnorm(c(thetaNew), rep(defPars$priorMean, each = ncovs),
+                   rep(defPars$priorSd, each = ncovs), 
+                   low = rep(defPars$low, each = ncovs), log = TRUE))
+      
+      r <- exp(parPostNew - parPostNow)
+      if (!is.na(r)) {
+        z <- runif(1)
+        if (r > z) {
+          thetaNow <- thetaNew
+          thetaMatNow <- thetaMatNew
+          likeMortNow <- likeMortNew
+          fullLikeNow <- fullLikeNew
+          parPostNow <- parPostNew
+          if (UpdJumps) updMat[iter, namesMat[pp]] <- 1
+        }
+      }
+    }
+    agePostNow <- fullLikeNow + CalcPriorAgeDist(xNow, thetaMatNow, exPrior)
+    
+    # 2. Dynamic Metropolis to update jumps:
+    if (UpdJumps) {
+      if (is.element(iter/iterUpd,c(1:50))) {
+        updRate <- apply(updMat[iter - ((iterUpd - 1):0), ], 2, sum) / iterUpd
+        updRate[updRate == 0] <- 1e-2
+        jumpMat <- jumpMat * matrix(updRate, ncovs, defPars$le, byrow = TRUE) / 
+          updTarg
+        jumpLargeMat <- rbind(jumpLargeMat, c(t(jumpMat)))
+      }
+    }
+    
+    # 3. Update ages at death:
+    xNew <- xNow
+    xNew[idNoDeath] <- rtnorm(length(idNoDeath), xNow[idNoDeath], 0.1, 
+                              low = ageToLast[idNoDeath])
+    likeMortNew <- CalcLikeMort(xNew, thetaMatNow)
+    fullLikeNew <- CalcFullLike(xNew, thetaMatNow, idM = idMnow, 
+                                idNM = idNMnow)
+    
+    agePostNew <- fullLikeNew + CalcPriorAgeDist(xNew, thetaMatNow, exPrior)
+    
+    r <- exp(agePostNew - agePostNow)[idNoDeath]
+    z <- runif(length(idNoDeath))
+    idUpd <- idNoDeath[r > z]
+    if (length(idUpd) > 0) {
+      likeMortNow[idUpd] <- likeMortNew[idUpd]
+      fullLikeNow[idUpd] <- fullLikeNew[idUpd]
+      agePostNow[idUpd] <- agePostNew[idUpd]
+      xNow[idUpd] <- xNew[idUpd]
+    }
+    parPostNow <- sum(fullLikeNow) + 
+      sum(dtnorm(c(thetaNow), rep(defPars$priorMean, each = ncovs),
+                 rep(defPars$priorSd, each = ncovs), 
+                 low = rep(defPars$low, each = ncovs), log = TRUE))
+
+    # 4. Update unknown sexes:
+    sexFemNew <- sexFemNow
+    sexFemNew[idNoSex] <- rbinom(length(idNoSex), 1, 0.5)
+    covarsNew <- cbind(sexFemNew, 1 - sexFemNew)
+    colnames(covarsNew) <- names
+    idMnew <- which(sexFemNew == 0 & (hwang$missing == 1 | 
+                                        hwang$presum.dead == 1) &
+                      ageToLast >= 1.75 & ageToLast <= 4.25)  
+    idNMnew <- which(hwang$alive == 1 | hwang$missing == 1 | 
+                       hwang$presum.dead == 1)
+    idNMnew <- idNMnew[!(idNMnew %in% idMnew)] # n = sum(!is.na(death)) + length(idMigr) + length
+    
+    thetaMatNew <- CalcCovTheta(thetaNow, covarsNew)  ## was thetaStart, on purpose?
+    likeMortNew <- CalcLikeMort(xNow, thetaMatNow)
+    fullLikeNew <- CalcFullLike(xNow, thetaMatNow, idM = idMnew, 
+                                idNM = idNMnew)
+    
+    agePostNew <- fullLikeNew + CalcPriorAgeDist(xNow, thetaMatNew, exPrior)
+    
+    r <- exp(agePostNew - agePostNow)[idNoSex]
+    z <- runif(length(idNoSex))
+    idUpd <- idNoSex[r > z]
+    if (length(idUpd) > 0) {
+      likeMortNow[idUpd] <- likeMortNew[idUpd]
+      fullLikeNow[idUpd] <- fullLikeNew[idUpd]
+      agePostNow[idUpd] <- agePostNew[idUpd]
+      covarsNow[idUpd, ] <- covarsNow[idUpd, ]
+      thetaMatNow[idUpd, ] <- thetaMatNew[idUpd, ]
+      sexFemNow[idUpd] <- sexFemNew[idUpd]
+    }
+    idMnow <- which(sexFemNow == 0 & 
+                      (hwang$missing == 1 | hwang$presum.dead == 1) &
+                      ageToLast >= 1.75 & ageToLast <= 4.25)  
+    idNMnow <- which(hwang$alive == 1 | hwang$missing == 1 | 
+                       hwang$presum.dead == 1)
+    idNMnow <- idNMnow[!(idNMnow %in% idMnow)] # n = sum(!is.na(death)) + length(idMigr) + length
+    
+    parPostNow <- sum(fullLikeNow) + 
+      sum(dtnorm(c(thetaNow), rep(defPars$priorMean, each = ncovs),
+                 rep(defPars$priorSd, each = ncovs), 
+                 low = rep(defPars$low, each = ncovs), log = TRUE))
+    
+    # 5. store results:
+    parMat[iter, ] <- c(t(thetaNow))
+    parPostVec[iter] <- parPostNow
+    agePostMat[iter, ] <- agePostNow
+    sexMat[iter, ] <- sexFemNow[idNoSex]
+  }
+  if (UpdJumps) {
+    aveJumps <- matrix(apply(jumpLargeMat[20:50, ], 2, mean), ncovs, 
+                       defPars$len, dimnames = dimnames(jumpMat))
+  } else {
+    aveJumps <- jumpMat
+  }
+  return(list(pars = parMat, parPost = parPostVec, agePost = agePostMat,
+              sexEst = sexMat, jumps = aveJumps))
+}
+
