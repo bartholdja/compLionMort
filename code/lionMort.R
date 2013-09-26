@@ -2,9 +2,13 @@ rm(list = ls())
 
 library(msm)
 library(RColorBrewer)
-#setwd("/Users/fernando/FERNANDO/PROJECTS/1.ACTIVE/JuliaLions/")
-setwd("/Users/Viktualia/Documents/GitHub/compLionMort")
-load("/Users/Viktualia/Dropbox/JuliaLions/data/hwangeMortAnal.03Sep.rdata")
+if ("fernando" %in% list.files("/Users/")) {
+  setwd("/Users/fernando/FERNANDO/PROJECTS/1.ACTIVE/JuliaLionsGithub/compLionMort/")
+} else {
+  setwd("/Users/Viktualia/Documents/GitHub/compLionMort")
+  load("/Users/Viktualia/Dropbox/JuliaLions/data/hwangeMortAnal.03Sep.rdata")
+}
+
 
 # Extract variables:
 study <- julian(as.Date(c("1999-06-01", "2013-06-26")), 
