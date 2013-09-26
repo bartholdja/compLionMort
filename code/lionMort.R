@@ -1,6 +1,7 @@
 rm(list = ls())
 
 library(msm)
+library(RColorBrewer)
 #setwd("/Users/fernando/FERNANDO/PROJECTS/1.ACTIVE/JuliaLions/")
 setwd("/Users/Viktualia/Documents/GitHub/compLionMort")
 load("/Users/Viktualia/Dropbox/JuliaLions/data/hwangeMortAnal.03Sep.rdata")
@@ -46,37 +47,53 @@ lamMigr <- out$minimum
 # for everyone other than male lions aged 1.75 to 4.25
 lamNonMigr <- -log(0.00005) / 2
 
-# Propose initial values:
+# Propose initial parameter values:
 model <- "go"; shape <- "bt"
 ncovs <- 2
-xStart <- c(last - birth) / 365.25
-xStart[idNoDeath] <- xStart[idNoDeath] + sample(1:10, length(idNoDeath), 
-                                                replace = TRUE)   # start ages
-
-# Sex 
-sexFem <- rep(1, n)
-sexFem[sex == "m"] <- 0
-sexFemNow <- sexFem
-sexFemNow[idNoSex] <- rbinom(length(idNoSex), 1, 0.5)
-covars <- cbind(sexFemNow, 1 - sexFemNow)
-colnames(covars) <- c("f", "m")
-idMnow <- which(sexFemNow == 0 & (hwang$missing == 1 | hwang$presum.dead == 1) &
-                  ageToLast >= 1.75 & ageToLast <= 4.25)  
-idNMnow <- which(hwang$alive == 1 | hwang$missing == 1 | hwang$presum.dead == 1)
-idNMnow <- idNMnow[!(idNMnow %in% idMnow)] # n = sum(!is.na(death)) + length(idMigr) + length
-
 defPars <- SetDefaultTheta()
+npars <- defPars$length * ncovs
+names <- c("f", "m")
+thetaNames <- paste(rep(defPars$name, ncovs), 
+                    rep(names, each = defPars$len), sep = '.')
 thetaStart <- matrix(defPars$start, nrow = ncovs, ncol = defPars$length, 
-                     byrow = TRUE, dimnames = list(colnames(covars), 
+                     byrow = TRUE, dimnames = list(names, 
                                                    defPars$name))
 class(thetaStart) <- c(model, shape)
-thetaMatStart <- CalcCovTheta(thetaStart, covars)
-thetaNames <- paste(rep(defPars$name,  ncovs), 
-                    rep(colnames(covars), each = defPars$len), sep = '.')
-npars <- length(thetaNames)
-likeMortStart <- CalcLikeMort(xStart, thetaMatStart)
-fullLikeStart <- CalcFullLike(xStart, thetaMatStart, idM = idMnow, 
-                              idNM = idNMnow)
+
+# Output storage objects:
+niter <- 10000
+niterRun <- 5
+for (iterRun in 1:niterRun) {  # one list element per run
+  if (iterRun == 1) parList <- NULL  
+  parList[[iterRun]] <- matrix(0, niter, npars, dimnames = list(NULL, thetaNames))
+  
+}
+parPostMat <- matrix(0, niterRun, niter, dimnames = list(sprintf("%d%s", 1:5, ".run"), NULL))
+for (iterRun in 1:niterRun) {  # one list element per run
+  if (iterRun == 1) agePostList <- NULL  
+  agePostList[[iterRun]] <- matrix(0, niter, n)
+}
+for (iterRun in 1:niterRun) {
+  if(iterRun == 1) sexList <- NULL
+  sexList[[iterRun]] <- matrix(NA, niter, length(idNoSex))
+}
+
+# Propose initial ages:
+xStart <- c(last - birth) / 365.25
+xStart[idNoDeath] <- xStart[idNoDeath] + sample(1:10, length(idNoDeath), 
+                                                replace = TRUE)
+
+# Propose intial sexes:
+sexFemStart <- rep(1, n)
+sexFemStart[sex == "m"] <- 0
+sexFemStart[idNoSex] <- rbinom(length(idNoSex), 1, 0.5)
+covarsStart  <- matrix(c(sexFemStart, 1 - sexFemStart), n, ncovs, dimnames = list(NULL, names))
+
+# Initial non-/migrators based on initial sexes:
+idMstart <- which(sexFemStart == 0 & (hwang$missing == 1 | hwang$presum.dead == 1) &
+                  ageToLast >= 1.75 & ageToLast <= 4.25)  
+idNMstart <- which(hwang$alive == 1 | hwang$missing == 1 | hwang$presum.dead == 1)
+idNMstart <- idNMstart[!(idNMstart %in% idMstart)] # n = sum(!is.na(death)) + length(idMigr) + length
 
 # Calculate priors:
 xv <- seq(0, 100, 0.1)
@@ -84,147 +101,157 @@ thPrior <- matrix(defPars$priorMean, length(xv), defPars$length, byrow = TRUE)
 class(thPrior) <- c(model, shape)
 exPrior <- sum(CalcSurv(thPrior, xv) * 0.1)
 
-# setup "now" values:
-thetaNow <- thetaStart
-thetaMatNow <- thetaMatStart
-likeMortNow <- likeMortStart
-fullLikeNow <- fullLikeStart
-parPostNow <- sum(fullLikeNow) + sum(dtnorm(c(thetaNow),  # I don't get this step.
+# MCMC:
+for (iterRun in 1:niterRun) {
+  # 1. setup "now" values:
+  if(iterRun == 1) thetaNow <- thetaStart
+  if (iterRun != 1) {thetaNow<- matrix(rtnorm(npars, t(thetaStart), rep(2 * defPars$jump, each = ncovs), 
+                                             low = rep(defPars$low, ncovs)), 2, 5, byrow = TRUE, 
+                                      dimnames = dimnames(thetaStart)); class(thetaNow) <- class(thetaStart)}
+  xNow <- xStart
+  sexFemNow <- sexFemStart
+  idMnow <- idMstart
+  idNMnow <- idNMstart
+  covarsNow <- covarsStart
+  
+  thetaMatNow <- CalcCovTheta(thetaNow, covarsNow)
+  likeMortNow <- CalcLikeMort(xStart, thetaMatNow)
+  fullLikeNow <- CalcFullLike(xStart, thetaMatNow, idM = idMnow, 
+                              idNM = idNMnow)
+  parPostNow <- sum(fullLikeNow) + sum(dtnorm(c(thetaNow),  # I don't get this step.
                                             rep(defPars$priorMean, each = ncovs),
                                             rep(defPars$priorSd, each = ncovs), 
                                             low = rep(defPars$low, each = ncovs), 
                                             log = TRUE))
-xNow <- xStart
-agePostNow <- fullLikeNow + CalcPriorAgeDist(xNow, thetaMatNow, exPrior)
-dNow <- birth + xNow
+  agePostNow <- fullLikeNow + CalcPriorAgeDist(xNow, thetaMatNow, exPrior)
 
-# Output matrices:
-niter <- 10000
-parMat <- matrix(0, niter, npars, dimnames = list(NULL, thetaNames))
-parPostVec <- rep(0, niter)
-agePostMat <- matrix(0, niter, n)
-sexMat <- matrix(NA, niter, length(idNoSex))
-
-for (iter in 1:niter) {
-  
-  # 1. Propose parameters:
-  for (pp in 1:npars) {
-    thetaNew <- thetaNow
-    thetaNew[pp] <- rtnorm(1, thetaNow[pp], rep(defPars$jump, each = ncovs)[pp], 
-                           low = rep(defPars$low, each = ncovs)[pp])
-    thetaMatNew <- CalcCovTheta(thetaNew, covars)
-    likeMortNew <- CalcLikeMort(xNow, thetaMatNew)
-    fullLikeNew <- CalcFullLike(xNow, thetaMatNew, idM = idMnow, 
+# Individual runs:
+  for (iter in 1:niter) {
+    
+    # 2. Propose parameters:
+    for (pp in 1:npars) {
+      thetaNew <- thetaNow
+      thetaNew[pp] <- rtnorm(1, thetaNow[pp], rep(defPars$jump, each = ncovs)[pp], 
+                             low = rep(defPars$low, each = ncovs)[pp])
+      thetaMatNew <- CalcCovTheta(thetaNew, covarsNow)
+      likeMortNew <- CalcLikeMort(xNow, thetaMatNew)
+      fullLikeNew <- CalcFullLike(xNow, thetaMatNew, idM = idMnow, 
+                                  idNM = idNMnow)
+      
+      parPostNew <- sum(fullLikeNew) + sum(dtnorm(c(thetaNew), 
+                                                  rep(defPars$priorMean, each = ncovs),
+                                                  rep(defPars$priorSd, each = ncovs), 
+                                                  low = rep(defPars$low, each = ncovs), 
+                                                  log = TRUE))
+      
+      r <- exp(parPostNew - parPostNow)
+      z <- runif(1)
+      if (r > z) {
+        thetaNow <- thetaNew
+        thetaMatNow <- thetaMatNew
+        likeMortNow <- likeMortNew
+        fullLikeNow <- fullLikeNew
+        parPostNow <- parPostNew
+      }
+    }
+    
+    # 3. Update ages at death:
+    xNew <- xNow
+    xNew[idNoDeath] <- rtnorm(length(idNoDeath), xNow[idNoDeath], 0.1, 
+                              low = ageToLast[idNoDeath])
+    likeMortNew <- CalcLikeMort(xNew, thetaMatNow)
+    fullLikeNew <- CalcFullLike(xNew, thetaMatNow, idM = idMnow, 
                                 idNM = idNMnow)
     
-    parPostNew <- sum(fullLikeNew) + sum(dtnorm(c(thetaNew), 
+    agePostNew <- fullLikeNew + CalcPriorAgeDist(xNew, thetaMatNow, exPrior)
+    
+    r <- exp(agePostNew - agePostNow)[idNoDeath]
+    z <- runif(length(idNoDeath))
+    idUpd <- idNoDeath[r > z]
+    if (length(idUpd) > 0) {
+      likeMortNow[idUpd] <- likeMortNew[idUpd]
+      fullLikeNow[idUpd] <- fullLikeNew[idUpd]
+      agePostNow[idUpd] <- agePostNew[idUpd]
+      xNow[idUpd] <- xNew[idUpd]
+    }
+    parPostNow <- sum(fullLikeNow) + sum(dtnorm(c(thetaNow), 
                                                 rep(defPars$priorMean, each = ncovs),
                                                 rep(defPars$priorSd, each = ncovs), 
                                                 low = rep(defPars$low, each = ncovs), 
                                                 log = TRUE))
+    # 4. Update unknown sexes:
+    sexFemNew <- sexFemNow
+    sexFemNew[idNoSex] <- rbinom(length(idNoSex), 1, 0.5)
+    covarsNew <- cbind(sexFemNew, 1 - sexFemNew)
+    colnames(covarsNew) <- names
+    idMnew <- which(sexFemNew == 0 & (hwang$missing == 1 | hwang$presum.dead == 1) &
+                      ageToLast >= 1.75 & ageToLast <= 4.25)  
+    idNMnew <- which(hwang$alive == 1 | hwang$missing == 1 | hwang$presum.dead == 1)
+    idNMnew <- idNMnew[!(idNMnew %in% idMnew)] # n = sum(!is.na(death)) + length(idMigr) + length
     
-    r <- exp(parPostNew - parPostNow)
-    z <- runif(1)
-    if (r > z) {
-      thetaNow <- thetaNew
-      thetaMatNow <- thetaMatNew
-      likeMortNow <- likeMortNew
-      fullLikeNow <- fullLikeNew
-      parPostNow <- parPostNew
+    thetaMatNew <- CalcCovTheta(thetaNow, covarsNew)  ## was thetaStart, on purpose?
+    likeMortNew <- CalcLikeMort(xNow, thetaMatNow)
+    fullLikeNew <- CalcFullLike(xNow, thetaMatNow, idM = idMnew, 
+                                idNM = idNMnew)
+    
+    agePostNew <- fullLikeNew + CalcPriorAgeDist(xNow, thetaMatNew, exPrior)
+    
+    r <- exp(agePostNew - agePostNow)[idNoSex]
+    z <- runif(length(idNoSex))
+    idUpd <- idNoSex[r > z]
+    if (length(idUpd) > 0) {
+      likeMortNow[idUpd] <- likeMortNew[idUpd]
+      fullLikeNow[idUpd] <- fullLikeNew[idUpd]
+      agePostNow[idUpd] <- agePostNew[idUpd]
+      covarsNow[idUpd, ] <- covarsNow[idUpd, ]
+      thetaMatNow[idUpd, ] <- thetaMatNew[idUpd, ]
+      sexFemNow[idUpd] <- sexFemNew[idUpd]
     }
+    idMnow <- which(sexFemNow == 0 & (hwang$missing == 1 | hwang$presum.dead == 1) &
+                      ageToLast >= 1.75 & ageToLast <= 4.25)  
+    idNMnow <- which(hwang$alive == 1 | hwang$missing == 1 | hwang$presum.dead == 1)
+    idNMnow <- idNMnow[!(idNMnow %in% idMnow)] # n = sum(!is.na(death)) + length(idMigr) + length
+    
+    parPostNow <- sum(fullLikeNow) + sum(dtnorm(c(thetaNow), 
+                                                rep(defPars$priorMean, each = ncovs),
+                                                rep(defPars$priorSd, each = ncovs), 
+                                                low = rep(defPars$low, each = ncovs), 
+                                                log = TRUE))
+    # 5. store results:
+    parList[[iterRun]][iter, ] <- c(t(thetaNow))
+    parPostMat[iterRun, iter ] <- parPostNow
+    agePostList[[iterRun]][iter, ] <- agePostNow
+    sexList[[iterRun]][iter, ] <- sexFemNow[idNoSex]
   }
-  
-  # 2. Update ages at death:
-  xNew <- xNow
-  xNew[idNoDeath] <- rtnorm(length(idNoDeath), xNow[idNoDeath], 0.1, 
-                            low = ageToLast[idNoDeath])
-  likeMortNew <- CalcLikeMort(xNew, thetaMatNow)
-  fullLikeNew <- CalcFullLike(xNew, thetaMatNow, idM = idMnow, 
-                              idNM = idNMnow)
-  
-  agePostNew <- fullLikeNew + CalcPriorAgeDist(xNew, thetaMatNow, exPrior)
-  
-  r <- exp(agePostNew - agePostNow)[idNoDeath]
-  z <- runif(length(idNoDeath))
-  idUpd <- idNoDeath[r > z]
-  if (length(idUpd) > 0) {
-    likeMortNow[idUpd] <- likeMortNew[idUpd]
-    fullLikeNow[idUpd] <- fullLikeNew[idUpd]
-    agePostNow[idUpd] <- agePostNew[idUpd]
-    xNow[idUpd] <- xNew[idUpd] # added by Julia
-  }
-  parPostNow <- sum(fullLikeNow) + sum(dtnorm(c(thetaNow), 
-                                              rep(defPars$priorMean, each = ncovs),
-                                              rep(defPars$priorSd, each = ncovs), 
-                                              low = rep(defPars$low, each = ncovs), 
-                                              log = TRUE))
-  # 3. Update unknown sexes:
-  sexFemNew <- sexFemNow
-  sexFemNew[idNoSex] <- rbinom(length(idNoSex), 1, 0.5)
-  covarsNew <- cbind(sexFemNew, 1 - sexFemNew)
-  colnames(covarsNew) <- c("f", "m")
-  idMnew <- which(sexFemNew == 0 & (hwang$missing == 1 | hwang$presum.dead == 1) &
-                    ageToLast >= 1.75 & ageToLast <= 4.25)  
-  idNMnew <- which(hwang$alive == 1 | hwang$missing == 1 | hwang$presum.dead == 1)
-  idNMnew <- idNMnew[!(idNMnew %in% idMnew)] # n = sum(!is.na(death)) + length(idMigr) + length
-  
-  thetaMatNew <- CalcCovTheta(thetaStart, covarsNew)  
-  likeMortNew <- CalcLikeMort(xNow, thetaMatNow)
-  fullLikeNew <- CalcFullLike(xNow, thetaMatNow, idM = idMnew, 
-                              idNM = idNMnew)
-  
-  agePostNew <- fullLikeNew + CalcPriorAgeDist(xNow, thetaMatNew, exPrior)
-  
-  r <- exp(agePostNew - agePostNow)[idNoSex]
-  z <- runif(length(idNoSex))
-  idUpd <- idNoSex[r > z]
-  if (length(idUpd) > 0) {
-    likeMortNow[idUpd] <- likeMortNew[idUpd]
-    fullLikeNow[idUpd] <- fullLikeNew[idUpd]
-    agePostNow[idUpd] <- agePostNew[idUpd]
-    covars[idUpd, ] <- covars[idUpd, ]
-    thetaMatNow[idUpd, ] <- thetaMatNew[idUpd, ]
-    sexFemNow[idUpd] <- sexFemNew[idUpd]
-  }
-  idMnow <- which(sexFemNow == 0 & (hwang$missing == 1 | hwang$presum.dead == 1) &
-                    ageToLast >= 1.75 & ageToLast <= 4.25)  
-  idNMnow <- which(hwang$alive == 1 | hwang$missing == 1 | hwang$presum.dead == 1)
-  idNMnow <- idNMnow[!(idNMnow %in% idMnow)] # n = sum(!is.na(death)) + length(idMigr) + length
-  
-  parPostNow <- sum(fullLikeNow) + sum(dtnorm(c(thetaNow), 
-                                              rep(defPars$priorMean, each = ncovs),
-                                              rep(defPars$priorSd, each = ncovs), 
-                                              low = rep(defPars$low, each = ncovs), 
-                                              log = TRUE))
-  # 3. store results:
-  parMat[iter, ] <- c(t(thetaNow))
-  parPostVec[iter] <- parPostNow
-  agePostMat[iter, ] <- agePostNow
-  sexMat[iter, ] <- sexFemNow[idNoSex]
 }
 
-pdf("results/trace005.pdf", width = 13, height = 10)
+pdf("results/trace008.pdf", width = 15, height = 10)
 par(mfrow = c(ncovs, defPars$length))
-for (i in 1:npars) plot(parMat[, i], type = 'l', main = thetaNames[i])
+for (i in 1:npars) {
+  for (iterRun in 1:niterRun) {
+  if (iterRun == 1) plot(parList[[iterRun]][ ,i], type = 'l', main = thetaNames[i])
+  if (iterRun != 1) lines(parList[[iterRun]][ ,i], col = brewer.pal(npars-1, "Set1")[iterRun])
+  }
+}
 dev.off()
 
-# plot densities male and female separate plots:
+# plot densities male and female separate plots:
 #pdf("results/parDens005.pdf", width = 10, height = 10)
 #par(mfrow = c(2, 5))
-#for (i in 1:10) plot(density(parMat[-c(1:1000), i]), type = 'l', 
+#for (i in 1:10) plot(density(parList[-c(1:1000), i]), type = 'l', 
 #                    main = thetaNames[i], lwd = 3)
 #dev.off()
 
-pdf("results/parDens005.pdf", width = 10, height = 5)
+pdf("results/parDens005.pdf", width = 12, height = 5)
 par(mfrow = c(1, defPars$length))
 for (i in 1:defPars$length) {
-  plot(density(parMat[-c(1:1000), i]), type = 'l', 
+  plot(density(parList[-c(1:1000), i]), type = 'l', 
        main = c("a0", "a1", "c", "b0", "b1") [i], 
-       lwd = 3, xlim = range(parMat[-c(1:1000), c(i, i+2)]),
-       ylim = c(0, max (c(max(density(parMat[-c(1:1000), i])[[2]]), 
-                          max(density(parMat[-c(1:1000), 
+       lwd = 3, xlim = range(parList[-c(1:1000), c(i, i+2)]),
+       ylim = c(0, max (c(max(density(parList[-c(1:1000), i])[[2]]), 
+                          max(density(parList[-c(1:1000), 
                           i+defPars$length])[[2]])))))
-  lines(density(parMat[-c(1:1000), i + 5]), col = 'dark green', lwd = 3)
+  lines(density(parList[-c(1:1000), i + 5]), col = 'dark green', lwd = 3)
 if (i == defPars$length) legend("topright", legend = c("female", "male"), 
                                 col = c('black', 'dark green'), lwd = c(3, 3))
 }
