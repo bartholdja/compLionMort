@@ -79,7 +79,7 @@ CalcSurv.ma <- function(th, x) {
 }
 
 CalcSurv.bt <- function(th, x) {
-  thb <- th[, -c(1:3)]
+  thb <- matrix(th[, -c(1:3)], nrow(th)) # avoids function failure if nrow(th) = 1
   class(thb) <- class(th)
   Sx0 <- exp(exp(th[, 1]) / th[, 2] * (exp(-th[, 2] * x) - 1) - th[, 3] * x)
   idNoTh12 <- which((th[, 1] != 0 | th[, 1] == 0)) 
@@ -88,6 +88,12 @@ CalcSurv.bt <- function(th, x) {
 
 # Ages at death density:
 CalcPdf <- function(th, x) CalcMort(th, x) * CalcSurv(th, x)
+
+# Ages at death cdf
+CalcCdf <- function(th, x) {
+  cdfx <- 1-CalcSurv(th, x)
+  return(cdfx)
+}
 
 # Life expectancy:
 CalcEx <- function(th, minAge = 0, dx = 0.1, xMax = 1000) {
@@ -223,10 +229,10 @@ RunMCMC <- function(sim) {
   fullLikeNow <- CalcFullLike(xStart, thetaMatNow, idM = idMnow, 
                               idNM = idNMnow)
   parPostNow <- sum(fullLikeNow) + 
-    sum(dtnorm(c(thetaNow), 
-               rep(defPars$priorMean, each = ncovs),
-               rep(defPars$priorSd, each = ncovs), 
-               low = rep(defPars$low, each = ncovs), log = TRUE))
+                  sum(dtnorm(c(thetaNow), 
+                  rep(defPars$priorMean, each = ncovs),
+                  rep(defPars$priorSd, each = ncovs), 
+                  low = rep(defPars$low, each = ncovs), log = TRUE))
   agePostNow <- fullLikeNow + CalcPriorAgeDist(xNow, thetaMatNow, exPrior)
   
   # Output matrices and vectors:
