@@ -123,8 +123,8 @@ pdf("results/trace009.pdf", width = 15, height = 10)
 par(mfrow = c(ncovs, defPars$length))
 for (i in 1:npars) {
   for (sim in 1:nsim) {
-  if (sim == 1) plot(out[[sim]]$par[ ,i], type = 'l', main = thetaNames[i])
-  if (sim != 1) lines(out[[sim]]$par[ ,i], col = brewer.pal(npars-1, "Set1")[sim])
+  if (sim == 1) plot(out[[sim]]$pars[ ,i], type = 'l', main = thetaNames[i])
+  if (sim != 1) lines(out[[sim]]$pars[ ,i], col = brewer.pal(npars-1, "Set1")[sim])
   }
 }
 dev.off()
