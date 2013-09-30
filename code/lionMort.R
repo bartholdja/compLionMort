@@ -12,7 +12,6 @@ if ("fernando" %in% list.files("/Users/")) {
 # Source functions:
 source("code/functions.R")
 
-
 # Extract variables:
 study <- julian(as.Date(c("1999-06-01", "2013-06-26")), 
                 origin = as.POSIXct("1970-01-01"))
@@ -38,9 +37,7 @@ idNoSex <- which(sex == "u")
 
 
 
-# Emigration probability of male lions aged 1.75 to 4.25, increasing with time since last seen
-# Calculate probability of lions being aged 1.75 to 4.25 years of age
-# to have left the area after t time steps not being seen
+# Emigration probability of male lions aged 1.75 to 4.25
 ageLastMigr <- ageToLast[idMigr]
 LikeMigr <- function(par) {
   -sum(log(par) - par * (ageLastMigr - 1.75)) # f(x) = 1 - exp(-alpha * x), F(x) = alpha * exp(-alpha * x)
@@ -48,8 +45,8 @@ LikeMigr <- function(par) {
 out <- optimise(LikeMigr, c(0, 10))
 lamMigr <- out$minimum
 
-# Non-resighting probability conditionon being alive and in the study area:
-# for everyone other than male lions aged 1.75 to 4.25
+# Non-resighting probability conditioned on being alive and in the study area:
+# for everyone other than male lions aged 1.75 to 4.25
 lamNonMigr <- -log(0.00005) / 2
 
 # Propose initial parameter values:
@@ -113,11 +110,6 @@ sfExport(list = c(ls(), ".Random.seed"))
 sfLibrary(msm, warn.conflicts = FALSE)
 out <- sfClusterApplyLB(1:nsim, RunMCMC)
 sfStop()
-
-
-
-
-
 
 pdf("results/trace009.pdf", width = 15, height = 10)
 par(mfrow = c(ncovs, defPars$length))
