@@ -17,8 +17,6 @@ if ("fernando" %in% list.files("/Users/")) {
 
 # Source functions:
 source("code/functions.R")
-# Load output model:
-load("results/output.rdata")
 
 # starting objects:
 s <- 0.45 # prop. females among 1 year old in Serengeti (Barthold et al in review)
