@@ -17,7 +17,7 @@ CalcBaseMort.go <- function(th, x) {
 }
 
 CalcBaseMort.lo <- function(th, x) {
-  (exp( )) / 
+  (exp(th[, 1] + th[, 2] * x)) / 
     (1 + th[, 3] * exp(th[, 1]) / th[, 2] * (exp(th[, 2] * x) - 1))
 }
 
