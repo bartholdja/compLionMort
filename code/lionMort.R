@@ -39,7 +39,6 @@ idNoSex <- which(sex == "u")
 probFem <- 0.45
 
 
-
 # Emigration probability of male lions aged 1.75 to 4.25
 ageLastMigr <- ageToLast[idMigr]
 LikeMigr <- function(par) {
@@ -99,7 +98,7 @@ jumpMatStart <- matrix(defPars$jump, ncovs, defPars$length, byrow = TRUE,
 # Run dynamic Metropolis to find jumps
 UpdJumps <- TRUE
 niter <- 5000
-outjump <- RunMCMC(1)
+outJump <- RunMCMC(1)
 
 # Run MCMC:
 UpdJumps <- FALSE
