@@ -113,7 +113,7 @@ CalcLikeMort <- function(x, th) {
 # Define the emigration likelihood:
 CalcLikeEmigr <- function(x, idM = idMigr, idNM = idNonMigr) {
   like <- x * 0 + 1
-  like[idM] <- 1 - exp(-lamMigr * (x[idM] - 1.75))
+  like[idM] <- 1 - exp(-lamMigr * (x[idM] - 2.5))
   like[idNM] <- exp(-lamNonMigr * (x[idNM] - ageToLast[idNM]))  # f(x) = exp(-alpha * x)
   return(like)
 }
@@ -253,7 +253,6 @@ RunMCMC <- function(sim) {
   
   # Individual runs:
   for (iter in 1:niter) {
-    print(iter)
     
     # 1. Propose parameters:
     for (pp in 1:npars) {
