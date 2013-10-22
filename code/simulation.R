@@ -109,7 +109,7 @@ intImmig <- findInterval(cdfYimmig, cdfYintImmig)
 # ages at death for immigrants
 xDImmig <- ageInt[intImmig]
 
-potImmig <- xDImmig[xDImmig >= 4]
+potImmig <- xDImmig[xDImmig >= 3]
 ageImmig <- sample(potImmig, 33, replace = FALSE)
 
 ageImmigID <- (dat$id[nrow(dat)]+1):(dat$id[nrow(dat)]+length(ageImmig))
@@ -121,6 +121,34 @@ addImmig <- data.frame(ageImmigID, ageImmig, sexImmig, sexImmig, ageImmig,
                        immigrationImmig)
 names(addImmig) <- names(dat)
 datNew <- rbind(dat, addImmig)
+
+seren <- read.csv("/Users/Viktualia/Dropbox/JuliaLions/data/SerenMalesMort01Aug13.csv",
+                  na.strings = "")
+
+serenIm <- subset(seren, seren$bornElsewher == 1)
+
+for (i in 3:8) {
+serenIm[ ,i] <- as.Date(serenIm[ ,i])
+}
+
+serenIm$datIm <- NULL
+serenIm$datIm[1] <- "1900-01-01"
+serenIm$datIm <- as.Date(serenIm$datIm)
+
+for (i in 1:nrow(serenIm)) {
+  for (j in 4:7){
+  if (is.na(serenIm[i, j])) {} else {
+    serenIm$datIm[i] <- serenIm[i, j]
+  }
+  }
+}
+
+serenIm$ageIm <- round((as.numeric(serenIm$datIm) -
+                          as.numeric(serenIm$birthDate))/365.25, 2)
+serenIm <- serenIm[-which(serenIm$ageIm == max(serenIm$ageIm)), ]
+median(serenIm$ageIm[serenIm$ageIm >= 2.5])
+quantile(serenIm$ageIm[serenIm$ageIm >= 2.5], 0.95)
+quantile(serenIm$ageIm[serenIm$ageIm >= 2.5], 0.05)
 
 rm(list = setdiff(ls(), c("dat")))
 
