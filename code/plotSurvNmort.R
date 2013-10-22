@@ -8,7 +8,7 @@ if ("fernando" %in% list.files("/Users/")) {
 } else {
   setwd("/Users/Viktualia/Documents/GitHub/compLionMort")
   load("/Users/Viktualia/Dropbox/JuliaLions/data/hwangeMortAnal.03Sep.rdata")
-  load("/Users/Viktualia/Dropbox/JuliaLions/results/outputProbFem0point4.Rdata")
+  load("/Users/Viktualia/Desktop/outputHwangTest.Rdata")
 }
 
 # Source functions:
@@ -60,7 +60,7 @@ rangesSurv <- sapply(names, function(nn) which(survList[[nn]][, 1] < 0.01)[1])
 
 rangesMort <- sapply(names, function(nn) range(mortList[[nn]][1:rangesSurv[nn], ]))
 
-pdf("results/survMortHwangPost.pdf", height = 10)
+pdf("/Users/Viktualia/Desktop/hwangTest.pdf", height = 10)
 par(mfrow = c(2, 1), mar = c(4, 5, 1, 1), family = 'serif')
 plot(range(xv[1:max(rangesSurv)]), c(0, 1), col = NA, frame.plot = FALSE, 
      xlab = "", ylab = expression(paste("Survival, ", italic(S(x)))))

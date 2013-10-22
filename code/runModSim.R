@@ -7,34 +7,36 @@ if ("fernando" %in% list.files("/Users/")) {
   load("/Users/fernando/FERNANDO/PROJECTS/1.ACTIVE/JuliaLions/data/hwangeMortAnal.03Sep.rdata")
 } else {
   setwd("/Users/Viktualia/Documents/GitHub/compLionMort")
-  load("/Users/Viktualia/Dropbox/JuliaLions/data/hwangeMortAnal.03Sep.rdata")
+  load("/Users//Viktualia/Documents/GitHub/compLionMort/data/simDatHwang.rdata")
 }
 
 # Source functions:
 source("code/functions.R")
 
 # Extract variables:
-study <- julian(as.Date(c("1999-06-01", "2013-06-26")), 
-                origin = as.POSIXct("1970-01-01"))
-n <- nrow(hwang)
-birth <- julian(as.Date(hwang[, "birthDate"]), 
-                origin = as.POSIXct("1970-01-01"))
-last <- julian(as.Date(hwang[, "deathLsDate"]), 
-               origin = as.POSIXct("1970-01-01"))
-death <- last
-death[hwang$alive == 1 | hwang$missing == 1 | hwang$presumDead == 1] <- NA
-idNoDeath <- which(is.na(death))
-first <- rep(NA, n)
-sex <- as.character(hwang[, 'sex'])
-idLeftTr <- which(hwang$immigration == 3)
-ageTrunc <- apply(cbind(study[1] - birth, 0), 1, max) / 365.25
-ageToLast <- (last - birth) / 365.25
+n <- nrow(dat)
+
+#study <- julian(as.Date(c("1999-06-01", "2013-06-26")), 
+#                origin = as.POSIXct("1970-01-01"))
+#birth <- julian(as.Date(hwang[, "birthDate"]), 
+#                origin = as.POSIXct("1970-01-01"))
+#last <- julian(as.Date(hwang[, "deathLsDate"]), 
+#               origin = as.POSIXct("1970-01-01"))
+#death <- last
+#death[hwang$alive == 1 | hwang$missing == 1 | hwang$presumDead == 1] <- NA
+#idNoDeath <- which(is.na(death))
+#first <- rep(NA, n)
+#idLeftTr <- which(hwang$immigration == 3)
+#ageTrunc <- apply(cbind(study[1] - birth, 0), 1, max) / 365.25
+
+ageToLast <- dat$ageLastSeen
+sex <- as.character(dat[, 'sexNew'])
+
+
 # in Pusey & Packer 1987 all males dispersed by the age of 4.2, minimum age 1.8 (1 ind out of 12)
-# Elliot et al (submitted) all males dispersed by the age of 3.75, minimum age 1.66 (no male survived younger than 2.6)
-idMigr <- which((sex == "m") & (hwang$missing == 1 | hwang$presumDead == 1) &
-                  ageToLast >= 2.5 & ageToLast <= 4.25)  
-idNonMigr <- which(hwang$alive == 1 | hwang$missing == 1 | hwang$presumDead == 1)
-idNonMigr <- idNonMigr[!(idNonMigr %in% idMigr)] # n = sum(!is.na(death)) + length(idMigr) + length(idNonMigr), everyone accounted for
+# Elliot et al (submitted) all males dispersed by the age of 3.75, minimum age 1.66 (no male survived younger than 2.6)
+idMigr <- which((sex == "m") & ageToLast >= 2.5 & ageToLast <= 4.25)  
+idNonMigr <- (1:length(sex))[!(1:length(sex) %in% idMigr)]
 idNoSex <- which(sex == "u")
 probFem <- 0.40
 
@@ -42,7 +44,7 @@ probFem <- 0.40
 # Emigration probability of male lions aged 2.5 to 4.25
 ageLastMigr <- ageToLast[idMigr]
 LikeMigr <- function(par) {
-  -sum(log(par) - par * (ageLastMigr - 2.5)) # f(x) = 1 - exp(-alpha * x), F(x) = alpha * exp(-alpha * x)
+  -sum(log(par) - par * (ageLastMigr - 2.5)) # f(x) = 1 - exp(-alpha * x), F(x) = alpha * exp(-alpha * x)
 }
 out <- optimise(LikeMigr, c(0, 10))
 lamMigr <- out$minimum
@@ -81,7 +83,7 @@ covarsStart  <- matrix(c(sexFemStart, 1 - sexFemStart), n, ncovs, dimnames = lis
 
 # Initial non-/migrators based on initial sexes:
 idMstart <- which(sexFemStart == 0 & (hwang$missing == 1 | hwang$presumDead == 1) &
-                  ageToLast >= 1.75 & ageToLast <= 4.25)  
+                    ageToLast >= 1.75 & ageToLast <= 4.25)  
 idNMstart <- which(hwang$alive == 1 | hwang$missing == 1 | hwang$presumDead == 1)
 idNMstart <- idNMstart[!(idNMstart %in% idMstart)] # n = sum(!is.na(death)) + length(idMigr) + length
 
@@ -116,13 +118,13 @@ sfStop()
 rm(list = setdiff(ls(), c("out", "nsim", "niter", "model", "shape", "ncovs", "names")))
 
 save.image(file = "/Users/Viktualia/Desktop/outputHwangTest.Rdata")
-               
+
 pdf("results/trace009.pdf", width = 15, height = 10)
 par(mfrow = c(ncovs, defPars$length))
 for (i in 1:npars) {
   for (sim in 1:nsim) {
-  if (sim == 1) plot(out[[sim]]$pars[ ,i], type = 'l', main = thetaNames[i])
-  if (sim != 1) lines(out[[sim]]$pars[ ,i], col = brewer.pal(npars-1, "Set1")[sim])
+    if (sim == 1) plot(out[[sim]]$pars[ ,i], type = 'l', main = thetaNames[i])
+    if (sim != 1) lines(out[[sim]]$pars[ ,i], col = brewer.pal(npars-1, "Set1")[sim])
   }
 }
 dev.off()
@@ -142,10 +144,10 @@ for (i in 1:defPars$length) {
        lwd = 3, xlim = range(parList[-c(1:1000), c(i, i+2)]),
        ylim = c(0, max (c(max(density(parList[-c(1:1000), i])[[2]]), 
                           max(density(parList[-c(1:1000), 
-                          i+defPars$length])[[2]])))))
+                                              i+defPars$length])[[2]])))))
   lines(density(parList[-c(1:1000), i + 5]), col = 'dark green', lwd = 3)
-if (i == defPars$length) legend("topright", legend = c("female", "male"), 
-                                col = c('black', 'dark green'), lwd = c(3, 3))
+  if (i == defPars$length) legend("topright", legend = c("female", "male"), 
+                                  col = c('black', 'dark green'), lwd = c(3, 3))
 }
 dev.off()
 
@@ -173,7 +175,7 @@ for (nc in 1:ncovs) {
     class(tht2) <- c(model, shape)
     CalcMort(tht2, xv)})
   mortList[[names[nc]]] <- cbind(apply(mort, 1, mean), 
-                    t(apply(mort, 1, quantile, c(0.025, 0.975))))
+                                 t(apply(mort, 1, quantile, c(0.025, 0.975))))
   surv <- apply(thetamat, 1, function(tht) {
     tht2 <- matrix(tht, length(xv), nPar, byrow = TRUE)
     class(tht2) <- c(model, shape)
@@ -214,7 +216,6 @@ for (i in 1:2) {
   lines(xv[1:rangesSurv[i]], mortList[[i]][1:rangesSurv[i], 1], col = 'white',
         lwd = 2)
 }
-
 
 
 
