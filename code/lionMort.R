@@ -31,24 +31,26 @@ ageTrunc <- apply(cbind(study[1] - birth, 0), 1, max) / 365.25
 ageToLast <- (last - birth) / 365.25
 # in Pusey & Packer 1987 all males dispersed by the age of 4.2, minimum age 1.8 (1 ind out of 12)
 # Elliot et al (submitted) all males dispersed by the age of 3.75, minimum age 1.66 (no male survived younger than 2.6)
+minDispAge <- 1.75
+maxDispAge <- 4.25
 idMigr <- which((sex == "m") & (hwang$missing == 1 | hwang$presumDead == 1) &
-                  ageToLast >= 2.5 & ageToLast <= 4.25)  
+                  ageToLast >= minDispAge & ageToLast <= maxDispAge)  
 idNonMigr <- which(hwang$alive == 1 | hwang$missing == 1 | hwang$presumDead == 1)
 idNonMigr <- idNonMigr[!(idNonMigr %in% idMigr)] # n = sum(!is.na(death)) + length(idMigr) + length(idNonMigr), everyone accounted for
 idNoSex <- which(sex == "u")
 probFem <- 0.40
 
 
-# Emigration probability of male lions aged 2.5 to 4.25
+# Emigration probability of male lions aged minimum dispersal to maximumg disperal age
 ageLastMigr <- ageToLast[idMigr]
 LikeMigr <- function(par) {
-  -sum(log(par) - par * (ageLastMigr - 2.5)) # f(x) = 1 - exp(-alpha * x), F(x) = alpha * exp(-alpha * x)
+  -sum(log(par) - par * (ageLastMigr - minDispAge)) # f(x) = 1 - exp(-alpha * x), F(x) = alpha * exp(-alpha * x)
 }
 out <- optimise(LikeMigr, c(0, 10))
 lamMigr <- out$minimum
 
 # Non-resighting probability conditioned on being alive and in the study area:
-# for everyone other than male lions aged 1.75 to 4.25
+# for everyone other than male lions aged between minimum and maximum dispersal age
 lamNonMigr <- -log(0.00005) / 2
 
 # Propose initial parameter values:
@@ -81,7 +83,7 @@ covarsStart  <- matrix(c(sexFemStart, 1 - sexFemStart), n, ncovs, dimnames = lis
 
 # Initial non-/migrators based on initial sexes:
 idMstart <- which(sexFemStart == 0 & (hwang$missing == 1 | hwang$presumDead == 1) &
-                  ageToLast >= 1.75 & ageToLast <= 4.25)  
+                  ageToLast >= minDispAge & ageToLast <= maxDispAge)  
 idNMstart <- which(hwang$alive == 1 | hwang$missing == 1 | hwang$presumDead == 1)
 idNMstart <- idNMstart[!(idNMstart %in% idMstart)] # n = sum(!is.na(death)) + length(idMigr) + length
 
@@ -104,8 +106,8 @@ outJump <- RunMCMC(1)
 UpdJumps <- FALSE
 jumpMatStart <- outJump$jumps
 niter <- 10000
-nsim <- 4
-ncpus <- 4
+nsim <- 2
+ncpus <- 2
 require(snowfall)
 sfInit(parallel = TRUE, cpus = ncpus)
 sfExport(list = c(ls(), ".Random.seed"))
@@ -115,7 +117,7 @@ sfStop()
 
 rm(list = setdiff(ls(), c("out", "nsim", "niter", "model", "shape", "ncovs", "names")))
 
-save.image(file = "/Users/Viktualia/Desktop/outputHwangTest.Rdata")
+save.image(file = "/Users/Viktualia/Desktop/outputHwang.Rdata")
                
 pdf("results/trace009.pdf", width = 15, height = 10)
 par(mfrow = c(ncovs, defPars$length))

@@ -36,6 +36,8 @@ niter <- 10000
 alphaProbUnsex <- -1/2 * log(0.3)  # f(x) = exp(-alpha * x) - beta, f(0) = 0.9, f(2) = 0.2
 betaProbUnsex <- 0.1
 lamMigr <- -1.83
+minDispAge <- 1.75
+maxDispAge <- 4.25
 
 theta <- matrix(round(out[[1]]$pars[niter, ], 2), 1, npars * ncovs)
 class(theta) <- c(model, shape)
@@ -77,7 +79,7 @@ rm(temp)
 idM <- which(dat$sex == "m" & rbinom(length(dat$sex == "m"), 1, 0.7) == 1)
 idNM <- (1:nrow(dat))[!(1:nrow(dat) %in% idM)]
 
-ageIntM <- seq(2.5, 4.5, 0.1)
+ageIntM <- seq(minDispAge, maxDispAge, 0.1)
 
 # migrators:
 cdfYintM <- 1 - (exp(-lamMigr * (ageIntM - 2.5)))
@@ -145,10 +147,6 @@ for (i in 1:nrow(serenIm)) {
 
 serenIm$ageIm <- round((as.numeric(serenIm$datIm) -
                           as.numeric(serenIm$birthDate))/365.25, 2)
-serenIm <- serenIm[-which(serenIm$ageIm == max(serenIm$ageIm)), ]
-median(serenIm$ageIm[serenIm$ageIm >= 2.5])
-quantile(serenIm$ageIm[serenIm$ageIm >= 2.5], 0.95)
-quantile(serenIm$ageIm[serenIm$ageIm >= 2.5], 0.05)
 
 rm(list = setdiff(ls(), c("dat")))
 
