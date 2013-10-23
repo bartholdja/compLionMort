@@ -113,7 +113,7 @@ CalcLikeMort <- function(x, th) {
 # Define the emigration likelihood:
 CalcLikeEmigr <- function(x, idM = idMigr, idNM = idNonMigr) {
   like <- x * 0 + 1
-  like[idM] <- 1 - exp(-lamMigr * (x[idM] - 2.5))
+  like[idM] <- 1 - exp(-lamMigr * (x[idM] - minDispAge))
   like[idNM] <- exp(-lamNonMigr * (x[idNM] - ageToLast[idNM]))  # f(x) = exp(-alpha * x)
   return(like)
 }
@@ -326,7 +326,7 @@ RunMCMC <- function(sim) {
     colnames(covarsNew) <- names
     idMnew <- which(sexFemNew == 0 & (hwang$missing == 1 | 
                                         hwang$presum.dead == 1) &
-                      ageToLast >= 1.75 & ageToLast <= 4.25)  
+                      ageToLast >= minDispAge & ageToLast <= maxDispAge)  
     idNMnew <- which(hwang$alive == 1 | hwang$missing == 1 | 
                        hwang$presum.dead == 1)
     idNMnew <- idNMnew[!(idNMnew %in% idMnew)] # n = sum(!is.na(death)) + length(idMigr) + length
@@ -351,7 +351,7 @@ RunMCMC <- function(sim) {
     }
     idMnow <- which(sexFemNow == 0 & 
                       (hwang$missing == 1 | hwang$presum.dead == 1) &
-                      ageToLast >= 1.75 & ageToLast <= 4.25)  
+                      ageToLast >= minDispAge & ageToLast <= maxDispAge)  
     idNMnow <- which(hwang$alive == 1 | hwang$missing == 1 | 
                        hwang$presum.dead == 1)
     idNMnow <- idNMnow[!(idNMnow %in% idMnow)] # n = sum(!is.na(death)) + length(idMigr) + length
