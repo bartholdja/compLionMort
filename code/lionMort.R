@@ -38,7 +38,7 @@ idMigr <- which((sex == "m") & (hwang$missing == 1 | hwang$presumDead == 1) &
 idNonMigr <- which(hwang$alive == 1 | hwang$missing == 1 | hwang$presumDead == 1)
 idNonMigr <- idNonMigr[!(idNonMigr %in% idMigr)] # n = sum(!is.na(death)) + length(idMigr) + length(idNonMigr), everyone accounted for
 idNoSex <- which(sex == "u")
-probFem <- 0.40
+probFem <- 0.45
 
 
 # Emigration probability of male lions aged minimum dispersal to maximumg disperal age
@@ -105,9 +105,9 @@ outJump <- RunMCMC(1)
 # Run MCMC:
 UpdJumps <- FALSE
 jumpMatStart <- outJump$jumps
-niter <- 10000
-nsim <- 4
-ncpus <- 4
+niter <- 30000
+nsim <- 2
+ncpus <- 2
 require(snowfall)
 sfInit(parallel = TRUE, cpus = ncpus)
 sfExport(list = c(ls(), ".Random.seed"))
