@@ -233,6 +233,9 @@ RunMCMC <- function(sim) {
                   rep(defPars$priorSd, each = ncovs), 
                   low = rep(defPars$low, each = ncovs), log = TRUE))
   agePostNow <- fullLikeNow + CalcPriorAgeDist(xNow, thetaMatNow, exPrior)
+  # Just added this line for sex proposal (25 Oct; Fer)
+  sexPostNow <- fullLikeNow + (sexFemNow) * log(probFem) +
+    (1 - sexFemNow) * log(1 - probFem)
   
   # Output matrices and vectors:
   parMat <- matrix(0, niter, npars, dimnames = list(NULL, thetaNames))
@@ -303,6 +306,9 @@ RunMCMC <- function(sim) {
                                 idNM = idNMnow)
     
     agePostNew <- fullLikeNew + CalcPriorAgeDist(xNew, thetaMatNow, exPrior)
+    # Just added this line for sex proposal (25 Oct; Fer)
+    sexPostNew <- fullLikeNew + (sexFemNow) * log(probFem) +
+      (1 - sexFemNow) * log(1 - probFem)
     
     r <- exp(agePostNew - agePostNow)[idNoDeath]
     z <- runif(length(idNoDeath))
@@ -312,6 +318,7 @@ RunMCMC <- function(sim) {
       fullLikeNow[idUpd] <- fullLikeNew[idUpd]
       agePostNow[idUpd] <- agePostNew[idUpd]
       xNow[idUpd] <- xNew[idUpd]
+      sexPostNow[idUpd] <- sexPostNew[idUpd]
     }
     parPostNow <- sum(fullLikeNow) + 
       sum(dtnorm(c(thetaNow), rep(defPars$priorMean, each = ncovs),
@@ -320,7 +327,7 @@ RunMCMC <- function(sim) {
 
     # 4. Update unknown sexes:
     sexFemNew <- sexFemNow
-    sexFemNew[idNoSex] <- rbinom(length(idNoSex), 1, probFem)
+    sexFemNew[idNoSex] <- rbinom(length(idNoSex), 1, 0.5)
     covarsNew <- cbind(sexFemNew, 1 - sexFemNew)
     colnames(covarsNew) <- names
     idMnew <- which(sexFemNew == 0 & (hwang$missing == 1 | 
@@ -336,6 +343,10 @@ RunMCMC <- function(sim) {
                                 idNM = idNMnew)
     
     agePostNew <- fullLikeNew + CalcPriorAgeDist(xNow, thetaMatNew, exPrior)
+
+    # Just added this line for sex proposal (25 Oct; Fer)
+    sexPostNew <- fullLikeNew + (sexFemNew) * log(probFem) +
+      (1 - sexFemNew) * log(1 - probFem)
     
     r <- exp(agePostNew - agePostNow)[idNoSex]
     z <- runif(length(idNoSex))
@@ -347,6 +358,7 @@ RunMCMC <- function(sim) {
       covarsNow[idUpd, ] <- covarsNow[idUpd, ]
       thetaMatNow[idUpd, ] <- thetaMatNew[idUpd, ]
       sexFemNow[idUpd] <- sexFemNew[idUpd]
+      sexPostNow[idUpd] <- sexPostNew[idUpd]
     }
     idMnow <- which(sexFemNow == 0 & 
                       (hwang$missing == 1 | hwang$presum.dead == 1) &
