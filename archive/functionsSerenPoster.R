@@ -113,7 +113,7 @@ CalcLikeMort <- function(x, th) {
 # Define the emigration likelihood:
 CalcLikeEmigr <- function(x, idM = idMigr, idNM = idNonMigr) {
   like <- x * 0 + 1
-  like[idM] <- 1 - exp(-lamMigr * (x[idM] - minDispAge))
+  like[idM] <- 1 - exp(-lamMigr * (x[idM] - 1.75))
   like[idNM] <- exp(-lamNonMigr * (x[idNM] - ageToLast[idNM]))  # f(x) = exp(-alpha * x)
   return(like)
 }
@@ -125,19 +125,17 @@ CalcFullLike <- function(x, th, idM = idMigr, idNM = idNonMigr) {
   return(like)
 }
 
-# Construct theta by covariate matrix:
 CalcCovTheta <- function(th, covars = NA) {
-  if (is.na(covars[1])) {   # this might not work if there are no covariates
+  if (is.na(covars[1])) {   # this might not work now if there are no covariates
     theta <- matrix(th, n, defPars$length, byrow = TRUE, 
                     dimnames = list(NULL, defPars$name)) 
   } else {
     theta <- covars %*% th
   }
-    class(theta) <- class(th)
+  class(theta) <- class(th)
   return(theta)
 }
 
-# Set starting values:
 SetDefaultTheta  <- function() {
   if (model == "ct") {
     nTh <- 1
@@ -204,6 +202,10 @@ SetDefaultTheta  <- function() {
   return(defaultTheta)
 }
 
+
+
+
+
 # MCMC:
 RunMCMC <- function(sim) {
   xNow <- xStart
@@ -215,11 +217,10 @@ RunMCMC <- function(sim) {
     thetaNow <- thetaStart
   } else {
     rm(".Random.seed", envir = .GlobalEnv); runif(1)
-    thetaNow <- matrix(rtnorm(npars, t(thetaStart),
-                          rep(defPars$jitter, each = ncovs), 
-                          low = rep(defPars$low, ncovs)), 
-                          2, 5, byrow = TRUE, 
-                          dimnames = dimnames(thetaStart)) 
+    thetaNow <- matrix(rtnorm(npars, t(thetaStart), rep(defPars$jitter, 
+                                                        each = ncovs), 
+                              low = rep(defPars$low, ncovs)), 2, 5, byrow = TRUE, 
+                       dimnames = dimnames(thetaStart)) 
     class(thetaNow) <- class(thetaStart)
   }
   
@@ -228,10 +229,10 @@ RunMCMC <- function(sim) {
   fullLikeNow <- CalcFullLike(xStart, thetaMatNow, idM = idMnow, 
                               idNM = idNMnow)
   parPostNow <- sum(fullLikeNow) + 
-                  sum(dtnorm(c(thetaNow), 
-                  rep(defPars$priorMean, each = ncovs),
-                  rep(defPars$priorSd, each = ncovs), 
-                  low = rep(defPars$low, each = ncovs), log = TRUE))
+    sum(dtnorm(c(thetaNow), 
+               rep(defPars$priorMean, each = ncovs),
+               rep(defPars$priorSd, each = ncovs), 
+               low = rep(defPars$low, each = ncovs), log = TRUE))
   agePostNow <- fullLikeNow + CalcPriorAgeDist(xNow, thetaMatNow, exPrior)
   
   # Output matrices and vectors:
@@ -317,18 +318,20 @@ RunMCMC <- function(sim) {
       sum(dtnorm(c(thetaNow), rep(defPars$priorMean, each = ncovs),
                  rep(defPars$priorSd, each = ncovs), 
                  low = rep(defPars$low, each = ncovs), log = TRUE))
-
+    
     # 4. Update unknown sexes:
     sexFemNew <- sexFemNow
     sexFemNew[idNoSex] <- rbinom(length(idNoSex), 1, probFem)
     covarsNew <- cbind(sexFemNew, 1 - sexFemNew)
     colnames(covarsNew) <- names
-    idMnew <- which(sexFemNew == 0 & (hwang$missing == 1 | 
-                                        hwang$presum.dead == 1) &
-                      ageToLast >= minDispAge & ageToLast <= maxDispAge)  
-    idNMnew <- which(hwang$alive == 1 | hwang$missing == 1 | 
-                       hwang$presum.dead == 1)
-    idNMnew <- idNMnew[!(idNMnew %in% idMnew)] # n = sum(!is.na(death)) + length(idMigr) + length
+    
+    idMstart <- which(sexFemStart == 0 & is.na(death) &
+                        ageToLast >= 1.75 & ageToLast <= 4.25)  
+    idNMstart <- which(!is.na(birth))[!(which(!is.na(birth)) %in% idMstart)]
+    
+    idMnew <- which(sexFemNew == 0 & is.na(death) &
+                      ageToLast >= 1.75 & ageToLast <= 4.25)  
+    idNMnew <- which(!is.na(birth))[!(which(!is.na(birth)) %in% idMstart)]
     
     thetaMatNew <- CalcCovTheta(thetaNow, covarsNew)  ## was thetaStart, on purpose?
     likeMortNew <- CalcLikeMort(xNow, thetaMatNow)
@@ -348,12 +351,9 @@ RunMCMC <- function(sim) {
       thetaMatNow[idUpd, ] <- thetaMatNew[idUpd, ]
       sexFemNow[idUpd] <- sexFemNew[idUpd]
     }
-    idMnow <- which(sexFemNow == 0 & 
-                      (hwang$missing == 1 | hwang$presum.dead == 1) &
-                      ageToLast >= minDispAge & ageToLast <= maxDispAge)  
-    idNMnow <- which(hwang$alive == 1 | hwang$missing == 1 | 
-                       hwang$presum.dead == 1)
-    idNMnow <- idNMnow[!(idNMnow %in% idMnow)] # n = sum(!is.na(death)) + length(idMigr) + length
+    idMnow <- which(sexFemNow == 0 & is.na(death) &
+                      ageToLast >= 1.75 & ageToLast <= 4.25)  
+    idNMnow <- which(!is.na(birth))[!(which(!is.na(birth)) %in% idMstart)]
     
     parPostNow <- sum(fullLikeNow) + 
       sum(dtnorm(c(thetaNow), rep(defPars$priorMean, each = ncovs),
@@ -375,4 +375,3 @@ RunMCMC <- function(sim) {
   return(list(pars = parMat, parPost = parPostVec, agePost = agePostMat,
               sexEst = sexMat, jumps = aveJumps))
 }
-
