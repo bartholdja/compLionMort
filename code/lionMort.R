@@ -106,8 +106,8 @@ outJump <- RunMCMC(1)
 UpdJumps <- FALSE
 jumpMatStart <- outJump$jumps
 niter <- 10000
-nsim <- 2
-ncpus <- 2
+nsim <- 4
+ncpus <- 4
 require(snowfall)
 sfInit(parallel = TRUE, cpus = ncpus)
 sfExport(list = c(ls(), ".Random.seed"))

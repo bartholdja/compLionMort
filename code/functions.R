@@ -125,8 +125,9 @@ CalcFullLike <- function(x, th, idM = idMigr, idNM = idNonMigr) {
   return(like)
 }
 
+# Construct theta by covariate matrix:
 CalcCovTheta <- function(th, covars = NA) {
-  if (is.na(covars[1])) {   # this might not work now if there are no covariates
+  if (is.na(covars[1])) {   # this might not work if there are no covariates
     theta <- matrix(th, n, defPars$length, byrow = TRUE, 
                     dimnames = list(NULL, defPars$name)) 
   } else {
@@ -136,6 +137,7 @@ CalcCovTheta <- function(th, covars = NA) {
   return(theta)
 }
 
+# Set starting values:
 SetDefaultTheta  <- function() {
   if (model == "ct") {
     nTh <- 1
@@ -202,10 +204,6 @@ SetDefaultTheta  <- function() {
   return(defaultTheta)
 }
 
-
-
-
-
 # MCMC:
 RunMCMC <- function(sim) {
   xNow <- xStart
@@ -217,10 +215,11 @@ RunMCMC <- function(sim) {
     thetaNow <- thetaStart
   } else {
     rm(".Random.seed", envir = .GlobalEnv); runif(1)
-    thetaNow <- matrix(rtnorm(npars, t(thetaStart), rep(defPars$jitter, 
-                                                       each = ncovs), 
-                             low = rep(defPars$low, ncovs)), 2, 5, byrow = TRUE, 
-                      dimnames = dimnames(thetaStart)) 
+    thetaNow <- matrix(rtnorm(npars, t(thetaStart),
+                          rep(defPars$jitter, each = ncovs), 
+                          low = rep(defPars$low, ncovs)), 
+                          2, 5, byrow = TRUE, 
+                          dimnames = dimnames(thetaStart)) 
     class(thetaNow) <- class(thetaStart)
   }
   
