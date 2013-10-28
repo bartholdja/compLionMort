@@ -105,6 +105,11 @@ CalcPriorAgeDist <- function(x, th, exPrior) {   # Prior age distr.: S(x, prior 
   CalcSurv(th, x) / exPrior
 }
 
+# Probability that an individual that is not seen anymore has left the study area:
+LikeMigr <- function(par) {
+  -sum(log(par) - par * (ageLastMigr - minDispAge)) # f(x) = 1 - exp(-alpha * x), F(x) = alpha * exp(-alpha * x)
+}
+
 # Define the mortality likelihood:
 CalcLikeMort <- function(x, th) {
   CalcPdf(th, x) / CalcSurv(th, ageTrunc) #  denominator becomes 1 for non-truncated individuals
@@ -330,13 +335,9 @@ RunMCMC <- function(sim) {
     sexFemNew[idNoSex] <- rbinom(length(idNoSex), 1, 0.5)
     covarsNew <- cbind(sexFemNew, 1 - sexFemNew)
     colnames(covarsNew) <- names
-    idMnew <- which(sexFemNew == 0 & (hwang$missing == 1 | 
-                                        hwang$presum.dead == 1) &
+    idMnew <- which(sexFemNew == 0 & unknownFate == 1 &
                       ageToLast >= minDispAge & ageToLast <= maxDispAge)  
-    idNMnew <- which(hwang$alive == 1 | hwang$missing == 1 | 
-                       hwang$presum.dead == 1)
-    idNMnew <- idNMnew[!(idNMnew %in% idMnew)] # n = sum(!is.na(death)) + length(idMigr) + length
-    
+    idNMnew <- (1:n)[!(1:n %in% idMnew)] 
     thetaMatNew <- CalcCovTheta(thetaNow, covarsNew)  ## was thetaStart, on purpose?
     likeMortNew <- CalcLikeMort(xNow, thetaMatNow)
     fullLikeNew <- CalcFullLike(xNow, thetaMatNow, idM = idMnew, 
@@ -350,22 +351,19 @@ RunMCMC <- function(sim) {
     
     r <- exp(agePostNew - agePostNow)[idNoSex]
     z <- runif(length(idNoSex))
-    idUpd <- idNoSex[r > z]
-    if (length(idUpd) > 0) {
-      likeMortNow[idUpd] <- likeMortNew[idUpd]
-      fullLikeNow[idUpd] <- fullLikeNew[idUpd]
-      agePostNow[idUpd] <- agePostNew[idUpd]
-      covarsNow[idUpd, ] <- covarsNow[idUpd, ]
-      thetaMatNow[idUpd, ] <- thetaMatNew[idUpd, ]
-      sexFemNow[idUpd] <- sexFemNew[idUpd]
-      sexPostNow[idUpd] <- sexPostNew[idUpd]
+    idUpd2 <- idNoSex[r > z]
+    if (length(idUpd2) > 0) {
+      likeMortNow[idUpd2] <- likeMortNew[idUpd2]
+      fullLikeNow[idUpd2] <- fullLikeNew[idUpd2]
+      agePostNow[idUpd2] <- agePostNew[idUpd2]
+      covarsNow[idUpd2, ] <- covarsNow[idUpd2, ]
+      thetaMatNow[idUpd2, ] <- thetaMatNew[idUpd2, ]
+      sexFemNow[idUpd2] <- sexFemNew[idUpd2]
+      sexPostNow[idUpd2] <- sexPostNew[idUpd2]
     }
-    idMnow <- which(sexFemNow == 0 & 
-                      (hwang$missing == 1 | hwang$presum.dead == 1) &
+    idMnow <- which(sexFemNow == 0 & unknownFate == 1 &
                       ageToLast >= minDispAge & ageToLast <= maxDispAge)  
-    idNMnow <- which(hwang$alive == 1 | hwang$missing == 1 | 
-                       hwang$presum.dead == 1)
-    idNMnow <- idNMnow[!(idNMnow %in% idMnow)] # n = sum(!is.na(death)) + length(idMigr) + length
+    idNMnow <- (1:n)[!(1:n %in% idMnow)]
     
     parPostNow <- sum(fullLikeNow) + 
       sum(dtnorm(c(thetaNow), rep(defPars$priorMean, each = ncovs),

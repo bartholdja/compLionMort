@@ -52,7 +52,7 @@ cdfYintMal <- CalcCdf(thetaMal, ageInt)
 intFem <- findInterval(cdfYfem, cdfYintFem)
 intMal <- findInterval(cdfYmal, cdfYintMal)
 
-lamMigr <- 1.83 # app. lamMigr from Hwange data
+lamMigr <- 1.1 # app. lamMigr from Hwange data
 lamNonMigr <- -log(0.00005) / 2
 
 # ages at death
@@ -92,6 +92,8 @@ for (i in 1 : length(xM)) {
 if(dat$ageYrs[idM][i] > xM[i]) dat$ageLastSeen[idM][i] <- xM[i]
 }
 
+dat$noDeath <- rep(0, nrow(dat))
+dat$noDeath[idM] <- 1
 
 # non-migrators:
 #cdfYintNM <- exp(-lamNonMigr * ageIntM)
@@ -123,30 +125,31 @@ addImmig <- data.frame(ageImmigID, ageImmig, sexImmig, sexImmig, ageImmig,
                        immigrationImmig)
 names(addImmig) <- names(dat)
 datNew <- rbind(dat, addImmig)
+dat <- datNew
 
-seren <- read.csv("/Users/Viktualia/Dropbox/JuliaLions/data/SerenMalesMort01Aug13.csv",
-                  na.strings = "")
+#seren <- read.csv("/Users/Viktualia/Dropbox/JuliaLions/data/SerenMalesMort01Aug13.csv",
+#                  na.strings = "")
 
-serenIm <- subset(seren, seren$bornElsewher == 1)
+#serenIm <- subset(seren, seren$bornElsewher == 1)
 
-for (i in 3:8) {
-serenIm[ ,i] <- as.Date(serenIm[ ,i])
-}
+#for (i in 3:8) {
+#serenIm[ ,i] <- as.Date(serenIm[ ,i])
+#}
 
-serenIm$datIm <- NULL
-serenIm$datIm[1] <- "1900-01-01"
-serenIm$datIm <- as.Date(serenIm$datIm)
+#serenIm$datIm <- NULL
+#serenIm$datIm[1] <- "1900-01-01"
+#serenIm$datIm <- as.Date(serenIm$datIm)
 
-for (i in 1:nrow(serenIm)) {
-  for (j in 4:7){
-  if (is.na(serenIm[i, j])) {} else {
-    serenIm$datIm[i] <- serenIm[i, j]
-  }
-  }
-}
+#for (i in 1:nrow(serenIm)) {
+#  for (j in 4:7){
+#  if (is.na(serenIm[i, j])) {} else {
+#    serenIm$datIm[i] <- serenIm[i, j]
+#  }
+#  }
+#}
 
-serenIm$ageIm <- round((as.numeric(serenIm$datIm) -
-                          as.numeric(serenIm$birthDate))/365.25, 2)
+#serenIm$ageIm <- round((as.numeric(serenIm$datIm) -
+#                          as.numeric(serenIm$birthDate))/365.25, 2)
 
 rm(list = setdiff(ls(), c("dat")))
 
