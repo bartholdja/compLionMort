@@ -37,7 +37,7 @@ CalcMort.ma <- function(th, x) {
 }
 
 CalcMort.bt <- function(th, x) {
-  thb <- matrix(th[, -c(1:3)], nrow(th)) # avoids function failure if nrow(th) = 1
+  thb <- matrix(th[, -c(1:3)], nrow(th)) 
   class(thb) <- class(th)
   exp(th[, 1] - th[, 2] * x) + th[, 3] + CalcBaseMort(thb, x)
 }
@@ -124,8 +124,8 @@ CalcLikeEmigr <- function(x, idM = idMigr, idNM = idNonMigr) {
 }
 
 # Define the full likelihood:
-CalcFullLike <- function(x, th, idM = idMigr, idNM = idNonMigr) {
-  like <- log(CalcLikeMort(x, th)) + 
+CalcLikeAges <- function(x, th, idM = idMigr, idNM = idNonMigr) {
+  like <- log(CalcPdf(th, x)) + 
     log(CalcLikeEmigr(x, idM = idM, idNM = idNM)) 
   return(like)
 }
@@ -230,16 +230,16 @@ RunMCMC <- function(sim) {
   
   thetaMatNow <- CalcCovTheta(thetaNow, covarsNow)
   likeMortNow <- CalcLikeMort(xStart, thetaMatNow)
-  fullLikeNow <- CalcFullLike(xStart, thetaMatNow, idM = idMnow, 
+  likeAgesNow <- CalcLikeAges(xStart, thetaMatNow, idM = idMnow, 
                               idNM = idNMnow)
-  parPostNow <- sum(fullLikeNow) + 
+  parPostNow <- sum(likeMortNow) + 
     sum(dtnorm(c(thetaNow), 
                rep(defPars$priorMean, each = ncovs),
                rep(defPars$priorSd, each = ncovs), 
                low = rep(defPars$low, each = ncovs), log = TRUE))
-  agePostNow <- fullLikeNow + CalcPriorAgeDist(xNow, thetaMatNow, exPrior)
+  agePostNow <- likeAgesNow + CalcPriorAgeDist(xNow, thetaMatNow, exPrior)
   # Just added this line for sex proposal (25 Oct; Fer)
-  sexPostNow <- fullLikeNow + (sexFemNow) * log(probFem) +
+  sexPostNow <- likeAgesNow + (sexFemNow) * log(probFem) +
     (1 - sexFemNow) * log(1 - probFem)
   
   # Output matrices and vectors:
@@ -260,7 +260,7 @@ RunMCMC <- function(sim) {
   
   # Individual runs:
   for (iter in 1:niter) {
-    if(iter %in% seq(1000, 30000, 1000)) print(iter)
+    
     # 1. Propose parameters:
     for (pp in 1:npars) {
       thetaNew <- thetaNow
@@ -268,11 +268,9 @@ RunMCMC <- function(sim) {
                              low = rep(defPars$low, each = ncovs)[pp])
       thetaMatNew <- CalcCovTheta(thetaNew, covarsNow)
       likeMortNew <- CalcLikeMort(xNow, thetaMatNew)
-      fullLikeNew <- CalcFullLike(xNow, thetaMatNew, idM = idMnow, 
-                                  idNM = idNMnow)
-      
-      parPostNew <- sum(fullLikeNew) + 
-        sum(dtnorm(c(thetaNew), rep(defPars$priorMean, each = ncovs),
+      parPostNew <- sum(likeMortNew) + 
+        sum(dtnorm(c(thetaNew), 
+                   rep(defPars$priorMean, each = ncovs),
                    rep(defPars$priorSd, each = ncovs), 
                    low = rep(defPars$low, each = ncovs), log = TRUE))
       
@@ -283,13 +281,15 @@ RunMCMC <- function(sim) {
           thetaNow <- thetaNew
           thetaMatNow <- thetaMatNew
           likeMortNow <- likeMortNew
-          fullLikeNow <- fullLikeNew
-          parPostNow <- parPostNew
+          likeAgesNow <- CalcLikeAges(xNow, thetaMatNow, idM = idMnow, 
+                                      idNM = idNMnow)
+          agePostNow <- likeAgesNow + CalcPriorAgeDist(xNow, thetaMatNow, exPrior)
+          sexPostNow <- likeAgesNow + (sexFemNow) * log(probFem) +
+            (1 - sexFemNow) * log(1 - probFem)
           if (UpdJumps) updMat[iter, namesMat[pp]] <- 1
         }
       }
     }
-    agePostNow <- fullLikeNow + CalcPriorAgeDist(xNow, thetaMatNow, exPrior)
     
     # 2. Dynamic Metropolis to update jumps:
     if (UpdJumps) {
@@ -306,13 +306,12 @@ RunMCMC <- function(sim) {
     xNew <- xNow
     xNew[idNoDeath] <- rtnorm(length(idNoDeath), xNow[idNoDeath], 0.1, 
                               low = ageToLast[idNoDeath])
-    likeMortNew <- CalcLikeMort(xNew, thetaMatNow)
-    fullLikeNew <- CalcFullLike(xNew, thetaMatNow, idM = idMnow, 
+    likeAgesNew <- CalcLikeAges(xNew, thetaMatNow, idM = idMnow, 
                                 idNM = idNMnow)
+    agePostNew <- likeAgesNew + CalcPriorAgeDist(xNew, thetaMatNow, exPrior)
     
-    agePostNew <- fullLikeNew + CalcPriorAgeDist(xNew, thetaMatNow, exPrior)
-    # Just added this line for sex proposal (25 Oct; Fer)
-    sexPostNew <- fullLikeNew + (sexFemNow) * log(probFem) +
+    likeMortNew <- CalcLikeMort(xNew, thetaMatNow)
+    sexPostNew <- likeAgesNew + (sexFemNow) * log(probFem) +
       (1 - sexFemNow) * log(1 - probFem)
     
     r <- exp(agePostNew - agePostNow)[idNoDeath]
@@ -320,13 +319,14 @@ RunMCMC <- function(sim) {
     idUpd <- idNoDeath[r > z]
     if (length(idUpd) > 0) {
       likeMortNow[idUpd] <- likeMortNew[idUpd]
-      fullLikeNow[idUpd] <- fullLikeNew[idUpd]
+      likeAgesNow[idUpd] <- likeAgesNew[idUpd]
       agePostNow[idUpd] <- agePostNew[idUpd]
       xNow[idUpd] <- xNew[idUpd]
       sexPostNow[idUpd] <- sexPostNew[idUpd]
     }
-    parPostNow <- sum(fullLikeNow) + 
-      sum(dtnorm(c(thetaNow), rep(defPars$priorMean, each = ncovs),
+    parPostNow <- sum(likeMortNow) + 
+      sum(dtnorm(c(thetaNow), 
+                 rep(defPars$priorMean, each = ncovs),
                  rep(defPars$priorSd, each = ncovs), 
                  low = rep(defPars$low, each = ncovs), log = TRUE))
     
@@ -339,22 +339,20 @@ RunMCMC <- function(sim) {
                       ageToLast >= minDispAge & ageToLast <= maxDispAge)  
     idNMnew <- (1:n)[!(1:n %in% idMnew)] 
     thetaMatNew <- CalcCovTheta(thetaNow, covarsNew)  ## was thetaStart, on purpose?
-    likeMortNew <- CalcLikeMort(xNow, thetaMatNow)
-    fullLikeNew <- CalcFullLike(xNow, thetaMatNow, idM = idMnew, 
+    likeMortNew <- CalcLikeMort(xNow, thetaMatNew)
+    likeAgesNew <- CalcLikeAges(xNow, thetaMatNew, idM = idMnew, 
                                 idNM = idNMnew)
+    agePostNew <- likeAgesNew + CalcPriorAgeDist(xNow, thetaMatNew, exPrior)
     
-    agePostNew <- fullLikeNew + CalcPriorAgeDist(xNow, thetaMatNew, exPrior)
-    
-    # Just added this line for sex proposal (25 Oct; Fer)
-    sexPostNew <- fullLikeNew + (sexFemNew) * log(probFem) +
+    sexPostNew <- likeAgesNew + (sexFemNew) * log(probFem) +
       (1 - sexFemNew) * log(1 - probFem)
     
-    r <- exp(agePostNew - agePostNow)[idNoSex]
+    r <- exp(sexPostNew - sexPostNow)[idNoSex]
     z <- runif(length(idNoSex))
     idUpd2 <- idNoSex[r > z]
     if (length(idUpd2) > 0) {
       likeMortNow[idUpd2] <- likeMortNew[idUpd2]
-      fullLikeNow[idUpd2] <- fullLikeNew[idUpd2]
+      likeAgesNow[idUpd2] <- likeAgesNew[idUpd2]
       agePostNow[idUpd2] <- agePostNew[idUpd2]
       covarsNow[idUpd2, ] <- covarsNow[idUpd2, ]
       thetaMatNow[idUpd2, ] <- thetaMatNew[idUpd2, ]
@@ -365,7 +363,7 @@ RunMCMC <- function(sim) {
                       ageToLast >= minDispAge & ageToLast <= maxDispAge)  
     idNMnow <- (1:n)[!(1:n %in% idMnow)]
     
-    parPostNow <- sum(fullLikeNow) + 
+    parPostNow <- sum(likeMortNow) + 
       sum(dtnorm(c(thetaNow), rep(defPars$priorMean, each = ncovs),
                  rep(defPars$priorSd, each = ncovs), 
                  low = rep(defPars$low, each = ncovs), log = TRUE))
@@ -385,4 +383,3 @@ RunMCMC <- function(sim) {
   return(list(pars = parMat, parPost = parPostVec, agePost = agePostMat,
               sexEst = sexMat, jumps = aveJumps))
 }
-
