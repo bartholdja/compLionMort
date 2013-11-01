@@ -24,6 +24,7 @@ n <- nrow(dat)
 #               origin = as.POSIXct("1970-01-01"))
 #death <- last
 #death[hwang$alive == 1 | hwang$missing == 1 | hwang$presumDead == 1] <- NA
+<<<<<<< HEAD
 #first <- rep(NA, n)
 #idLeftTr <- which(hwang$immigration == 3)
 ageTrunc <- rep(0, n)  # no truncation in simulation study
@@ -33,18 +34,40 @@ ageToLast <- dat$ageLastSeen
 sex <- as.character(dat[, 'sexNew'])
 minDispAge <- 1.75
 maxDispAge <- 4.25
+=======
+#idNoDeath <- which(is.na(death))
+#first <- rep(NA, n)
+#idLeftTr <- which(hwang$immigration == 3)
+#ageTrunc <- apply(cbind(study[1] - birth, 0), 1, max) / 365.25
+
+ageToLast <- dat$ageLastSeen
+sex <- as.character(dat[, 'sexNew'])
+>>>>>>> 69178ba44082b889072032c43b403846e3a6b3d3
 
 
 # in Pusey & Packer 1987 all males dispersed by the age of 4.2, minimum age 1.8 (1 ind out of 12)
 # Elliot et al (submitted) all males dispersed by the age of 3.75, minimum age 1.66 (no male survived younger than 2.6)
+<<<<<<< HEAD
 idMigr <- which((sex == "m") & ageToLast >= minDispAge & ageToLast <= maxDispAge)  
 idNonMigr <- (1:length(sex))[!(1:length(sex) %in% idMigr)]
 idNoSex <- which(sex == "u")
 probFem <- 0.45 # proportion females at birth
+=======
+idMigr <- which((sex == "m") & ageToLast >= 2.5 & ageToLast <= 4.25)  
+idNonMigr <- (1:length(sex))[!(1:length(sex) %in% idMigr)]
+idNoSex <- which(sex == "u")
+probFem <- 0.40
+>>>>>>> 69178ba44082b889072032c43b403846e3a6b3d3
 
 
 # Emigration probability of male lions aged 2.5 to 4.25
 ageLastMigr <- ageToLast[idMigr]
+<<<<<<< HEAD
+=======
+LikeMigr <- function(par) {
+  -sum(log(par) - par * (ageLastMigr - 2.5)) # f(x) = 1 - exp(-alpha * x), F(x) = alpha * exp(-alpha * x)
+}
+>>>>>>> 69178ba44082b889072032c43b403846e3a6b3d3
 out <- optimise(LikeMigr, c(0, 10))
 lamMigr <- out$minimum
 
@@ -70,7 +93,11 @@ niter <- 10000
 niterRun <- 5
 
 # Propose initial ages:
+<<<<<<< HEAD
 xStart <- ageToLast
+=======
+xStart <- c(last - birth) / 365.25
+>>>>>>> 69178ba44082b889072032c43b403846e3a6b3d3
 xStart[idNoDeath] <- xStart[idNoDeath] + sample(1:10, length(idNoDeath), 
                                                 replace = TRUE)
 
@@ -81,9 +108,16 @@ sexFemStart[idNoSex] <- rbinom(length(idNoSex), 1, probFem)
 covarsStart  <- matrix(c(sexFemStart, 1 - sexFemStart), n, ncovs, dimnames = list(NULL, names))
 
 # Initial non-/migrators based on initial sexes:
+<<<<<<< HEAD
 idMstart <- which(sexFemStart == 0 & unknownFate == 1 &
                     ageToLast >= minDispAge & ageToLast <= maxDispAge)  
 idNMstart <- (1:n)[!(1:n %in% idMstart)]
+=======
+idMstart <- which(sexFemStart == 0 & (hwang$missing == 1 | hwang$presumDead == 1) &
+                    ageToLast >= 1.75 & ageToLast <= 4.25)  
+idNMstart <- which(hwang$alive == 1 | hwang$missing == 1 | hwang$presumDead == 1)
+idNMstart <- idNMstart[!(idNMstart %in% idMstart)] # n = sum(!is.na(death)) + length(idMigr) + length
+>>>>>>> 69178ba44082b889072032c43b403846e3a6b3d3
 
 # Calculate priors:
 xv <- seq(0, 100, 0.1)
@@ -113,10 +147,16 @@ sfLibrary(msm, warn.conflicts = FALSE)
 out <- sfClusterApplyLB(1:nsim, RunMCMC)
 sfStop()
 
+<<<<<<< HEAD
 rm(list = setdiff(ls(), c("out", "nsim", "niter", "model", "shape", "ncovs",
                           "names", "defPars", "npars")))
 
 save.image("/Users/Viktualia/Documents/GitHub/compLionMort/results/simDatHwang.Rdata")
+=======
+rm(list = setdiff(ls(), c("out", "nsim", "niter", "model", "shape", "ncovs", "names")))
+
+save.image(file = "/Users/Viktualia/Desktop/outputHwangTest.Rdata")
+>>>>>>> 69178ba44082b889072032c43b403846e3a6b3d3
 
 pdf("results/trace009.pdf", width = 15, height = 10)
 par(mfrow = c(ncovs, defPars$length))

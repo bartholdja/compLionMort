@@ -23,9 +23,13 @@ last <- julian(as.Date(hwang[, "deathLsDate"]),
                origin = as.POSIXct("1970-01-01"))
 death <- last
 death[hwang$alive == 1 | hwang$missing == 1 | hwang$presumDead == 1] <- NA
+<<<<<<< HEAD
 unknownFate <- rep(0, n)
 unknownFate[hwang$missing == 1 | hwang$presumDead == 1] <- 1  # indicator needed for update of idM in MCMC
 idNoDeath <- which(unknownFate == 1)
+=======
+idNoDeath <- which(is.na(death))
+>>>>>>> 69178ba44082b889072032c43b403846e3a6b3d3
 first <- rep(NA, n)
 sex <- as.character(hwang[, 'sex'])
 idLeftTr <- which(hwang$immigration == 3)

@@ -335,9 +335,19 @@ RunMCMC <- function(sim) {
     sexFemNew[idNoSex] <- rbinom(length(idNoSex), 1, 0.5)
     covarsNew <- cbind(sexFemNew, 1 - sexFemNew)
     colnames(covarsNew) <- names
+<<<<<<< HEAD
     idMnew <- which(sexFemNew == 0 & unknownFate == 1 &
                       ageToLast >= minDispAge & ageToLast <= maxDispAge)  
     idNMnew <- (1:n)[!(1:n %in% idMnew)] 
+=======
+    idMnew <- which(sexFemNew == 0 & (hwang$missing == 1 | 
+                                        hwang$presum.dead == 1) &
+                      ageToLast >= minDispAge & ageToLast <= maxDispAge)  
+    idNMnew <- which(hwang$alive == 1 | hwang$missing == 1 | 
+                       hwang$presum.dead == 1)
+    idNMnew <- idNMnew[!(idNMnew %in% idMnew)] # n = sum(!is.na(death)) + length(idMigr) + length
+    
+>>>>>>> 69178ba44082b889072032c43b403846e3a6b3d3
     thetaMatNew <- CalcCovTheta(thetaNow, covarsNew)  ## was thetaStart, on purpose?
     likeMortNew <- CalcLikeMort(xNow, thetaMatNow)
     fullLikeNew <- CalcFullLike(xNow, thetaMatNow, idM = idMnew, 
@@ -351,6 +361,7 @@ RunMCMC <- function(sim) {
     
     r <- exp(agePostNew - agePostNow)[idNoSex]
     z <- runif(length(idNoSex))
+<<<<<<< HEAD
     idUpd2 <- idNoSex[r > z]
     if (length(idUpd2) > 0) {
       likeMortNow[idUpd2] <- likeMortNew[idUpd2]
@@ -364,6 +375,24 @@ RunMCMC <- function(sim) {
     idMnow <- which(sexFemNow == 0 & unknownFate == 1 &
                       ageToLast >= minDispAge & ageToLast <= maxDispAge)  
     idNMnow <- (1:n)[!(1:n %in% idMnow)]
+=======
+    idUpd <- idNoSex[r > z]
+    if (length(idUpd) > 0) {
+      likeMortNow[idUpd] <- likeMortNew[idUpd]
+      fullLikeNow[idUpd] <- fullLikeNew[idUpd]
+      agePostNow[idUpd] <- agePostNew[idUpd]
+      covarsNow[idUpd, ] <- covarsNow[idUpd, ]
+      thetaMatNow[idUpd, ] <- thetaMatNew[idUpd, ]
+      sexFemNow[idUpd] <- sexFemNew[idUpd]
+      sexPostNow[idUpd] <- sexPostNew[idUpd]
+    }
+    idMnow <- which(sexFemNow == 0 & 
+                      (hwang$missing == 1 | hwang$presum.dead == 1) &
+                      ageToLast >= minDispAge & ageToLast <= maxDispAge)  
+    idNMnow <- which(hwang$alive == 1 | hwang$missing == 1 | 
+                       hwang$presum.dead == 1)
+    idNMnow <- idNMnow[!(idNMnow %in% idMnow)] # n = sum(!is.na(death)) + length(idMigr) + length
+>>>>>>> 69178ba44082b889072032c43b403846e3a6b3d3
     
     parPostNow <- sum(fullLikeNow) + 
       sum(dtnorm(c(thetaNow), rep(defPars$priorMean, each = ncovs),
