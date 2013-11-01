@@ -4,10 +4,10 @@ library(RColorBrewer)
 
 if ("fernando" %in% list.files("/Users/")) {
   setwd("/Users/fernando/FERNANDO/PROJECTS/1.ACTIVE/JuliaLionsGithub/compLionMort/")
-  load("/Users/fernando/FERNANDO/PROJECTS/1.ACTIVE/JuliaLions/data/hwangeMortAnal.03Sep.rdata")
+  load("/Users/fernando/FERNANDO/PROJECTS/1.ACTIVE/JuliaLions/data/hwange/hwangeMortAnal.03Sep.rdata")
 } else {
   setwd("/Users/Viktualia/Documents/GitHub/compLionMort")
-  load("/Users/Viktualia/Dropbox/JuliaLions/data/hwangeMortAnal.03Sep.rdata")
+  load("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/data/hwange/hwangeMortAnal.03Sep.rdata")
   load("/Users/Viktualia/Desktop/outputHwang.Rdata")
 }
 
@@ -90,4 +90,3 @@ for (i in 1:2) {
 }
 
 dev.off()
-
