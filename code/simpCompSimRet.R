@@ -2,7 +2,7 @@ rm(list = ls())
 
 if ("fernando" %in% list.files("/Users/")) {
   setwd("/Users/fernando/FERNANDO/PROJECTS/1.ACTIVE/JuliaLionsGithub/compLionMort/")
-  load("/Users/fernando/FERNANDO/PROJECTS/1.ACTIVE/JuliaLions/data/hwange/simDatHwang.rdata")
+  load("/Users/fernando/FERNANDO/PROJECTS/1.ACTIVE/JuliaLions/results/simHwangOutput.Rdata")
 } else {
   setwd("/Users/Viktualia/Documents/GitHub/compLionMort")
   load("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/results/simHwangOutput.Rdata")

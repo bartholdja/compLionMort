@@ -45,9 +45,6 @@ probFem <- 0.45
 
 # Emigration probability of male lions aged minimum dispersal to maximumg disperal age
 ageLastMigr <- ageToLast[idMigr]
-LikeMigr <- function(par) {
-  -sum(log(par) - par * (ageLastMigr - minDispAge)) # f(x) = 1 - exp(-alpha * x), F(x) = alpha * exp(-alpha * x)
-}
 out <- optimise(LikeMigr, c(0, 10))
 lamMigr <- out$minimum
 

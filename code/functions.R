@@ -3,55 +3,49 @@
 # Functions:
 # Basic mortality:
 CalcBaseMort <- function(th, ...) UseMethod("CalcBaseMort")
-
 CalcBaseMort.ct <- function(th, x) {
   rep(th, length(x))
 }
-
-CalcBaseMort.we <- function(th, x) {
-  th[, 1] * th[, 2]^th[, 1] * x^(th[, 1] - 1)
-}
-
-CalcBaseMort.go <- function(th, x) {
-  exp(th[, 1] + th[, 2] * x)
-}
-
 CalcBaseMort.lo <- function(th, x) {
   (exp(th[, 1] + th[, 2] * x)) / 
     (1 + th[, 3] * exp(th[, 1]) / th[, 2] * (exp(th[, 2] * x) - 1))
 }
+CalcBaseMort.we <- function(th, x) {
+  th[, 1] * th[, 2]^th[, 1] * x^(th[, 1] - 1)
+}
+CalcBaseMort.go <- function(th, x) {
+  exp(th[, 1] + th[, 2] * x)
+}
 
 # Mortality by shape (simple, makeham, bathtub):
 CalcMort <- function(th, ...) UseMethod("CalcMort")
-
 CalcMort.si <- function(th, x) {   # si stands for simple
   thb <- th
   class(thb) <- class(th)
   CalcBaseMort(thb, x)
 }
-
 CalcMort.ma <- function(th, x) {   
   thb <- th[, -1]
   class(thb) <- class(th)
   th[, 1] + CalcBaseMort(thb, x)
 }
-
 CalcMort.bt <- function(th, x) {
   thb <- matrix(th[, -c(1:3)], nrow(th)) 
   class(thb) <- class(th)
   exp(th[, 1] - th[, 2] * x) + th[, 3] + CalcBaseMort(thb, x)
 }
 
+# Basic survival:
 CalcBaseSurv <- function(th, ...) UseMethod("CalcBaseSurv")
-
 CalcBaseSurv.ct <- function(th, x) {
   exp(-th * x)
 }
-
 CalcBaseSurv.we <- function(th, x) {
   exp(-(th[, 2] * x)^th[, 1])
 }
-
+CalcBaseSurv.lo <- function(th, x) {
+  (1 + th[, 3] * exp(th[, 1]) / th[, 2] * (exp(th[, 2] * x) - 1))^(-1 / th[, 3])
+}
 CalcBaseSurv.go <- function(th, x) {
   Sx <- exp(exp(th[, 1]) / th[, 2] * (1 - exp(th[, 2] * x)))
   idNoTh12 <- which(th[, 1] == 0)
@@ -59,25 +53,18 @@ CalcBaseSurv.go <- function(th, x) {
   return(Sx)
 }
 
-CalcBaseSurv.lo <- function(th, x) {
-  (1 + th[, 3] * exp(th[, 1]) / th[, 2] * (exp(th[, 2] * x) - 1))^(-1 / th[, 3])
-}
-
-
+# Survival by shape
 CalcSurv <- function(th, ...) UseMethod("CalcSurv")
-
 CalcSurv.si <- function(th, x) {
   thb <- th
   class(thb) <- class(th)
   CalcBaseSurv(thb, x)
 }
-
 CalcSurv.ma <- function(th, x) {
   thb <- th[, -1]
   class(thb) <- class(th)
   exp(-th[, 1] * x) * CalcBaseSurv(thb, x)
 }
-
 CalcSurv.bt <- function(th, x) {
   thb <- matrix(th[, -c(1:3)], nrow(th)) # avoids function failure if nrow(th) = 1
   class(thb) <- class(th)
@@ -89,7 +76,7 @@ CalcSurv.bt <- function(th, x) {
 # Ages at death density:
 CalcPdf <- function(th, x) CalcMort(th, x) * CalcSurv(th, x)
 
-# Ages at death cdf
+# Ages at death cdf:
 CalcCdf <- function(th, x) {
   cdfx <- 1-CalcSurv(th, x)
   return(cdfx)
@@ -110,9 +97,10 @@ LikeMigr <- function(par) {
   -sum(log(par) - par * (ageLastMigr - minDispAge)) # f(x) = 1 - exp(-alpha * x), F(x) = alpha * exp(-alpha * x)
 }
 
+# Likelihoods
 # Define the mortality likelihood:
 CalcLikeMort <- function(x, th) {
-  CalcPdf(th, x) / CalcSurv(th, ageTrunc) #  denominator becomes 1 for non-truncated individuals
+  CalcPdf(th, x) / CalcSurv(th, ageTrunc)#  denominator becomes 1 for non-truncated individuals
 }
 
 # Define the emigration likelihood:
@@ -123,9 +111,9 @@ CalcLikeEmigr <- function(x, idM = idMigr, idNM = idNonMigr) {
   return(like)
 }
 
-# Define the full likelihood:
+# Define the ages at death likelihood:
 CalcLikeAges <- function(x, th, idM = idMigr, idNM = idNonMigr) {
-  like <- log(CalcPdf(th, x)) + 
+  like <- log(CalcPdf(th, x)) + # some Inf in the log of pdf because the pdf is 0
     log(CalcLikeEmigr(x, idM = idM, idNM = idNM)) 
   return(like)
 }
@@ -233,12 +221,11 @@ RunMCMC <- function(sim) {
   likeAgesNow <- CalcLikeAges(xStart, thetaMatNow, idM = idMnow, 
                               idNM = idNMnow)
   parPostNow <- sum(likeMortNow) + 
-    sum(dtnorm(c(thetaNow), 
-               rep(defPars$priorMean, each = ncovs),
-               rep(defPars$priorSd, each = ncovs), 
-               low = rep(defPars$low, each = ncovs), log = TRUE))
+                sum(dtnorm(c(thetaNow), 
+                rep(defPars$priorMean, each = ncovs),
+                rep(defPars$priorSd, each = ncovs), 
+                low = rep(defPars$low, each = ncovs), log = TRUE))
   agePostNow <- likeAgesNow + CalcPriorAgeDist(xNow, thetaMatNow, exPrior)
-  # Just added this line for sex proposal (25 Oct; Fer)
   sexPostNow <- likeAgesNow + (sexFemNow) * log(probFem) +
     (1 - sexFemNow) * log(1 - probFem)
   
@@ -269,11 +256,11 @@ RunMCMC <- function(sim) {
       thetaMatNew <- CalcCovTheta(thetaNew, covarsNow)
       likeMortNew <- CalcLikeMort(xNow, thetaMatNew)
       parPostNew <- sum(likeMortNew) + 
-        sum(dtnorm(c(thetaNew), 
-                   rep(defPars$priorMean, each = ncovs),
-                   rep(defPars$priorSd, each = ncovs), 
-                   low = rep(defPars$low, each = ncovs), log = TRUE))
-      
+                    sum(dtnorm(c(thetaNew), 
+                    rep(defPars$priorMean, each = ncovs),
+                    rep(defPars$priorSd, each = ncovs), 
+                    low = rep(defPars$low, each = ncovs), log = TRUE))
+       
       r <- exp(parPostNew - parPostNow)
       if (!is.na(r)) {
         z <- runif(1)
@@ -281,7 +268,7 @@ RunMCMC <- function(sim) {
           thetaNow <- thetaNew
           thetaMatNow <- thetaMatNew
           likeMortNow <- likeMortNew
-          likeAgesNow <- CalcLikeAges(xNow, thetaMatNow, idM = idMnow, 
+          likeAgesNow <- CalcLikeAges(xNow, thetaMatNow, idM = idMnow,
                                       idNM = idNMnow)
           agePostNow <- likeAgesNow + CalcPriorAgeDist(xNow, thetaMatNow, exPrior)
           sexPostNow <- likeAgesNow + (sexFemNow) * log(probFem) +
@@ -308,15 +295,16 @@ RunMCMC <- function(sim) {
                               low = ageToLast[idNoDeath])
     likeAgesNew <- CalcLikeAges(xNew, thetaMatNow, idM = idMnow, 
                                 idNM = idNMnow)
-    agePostNew <- likeAgesNew + CalcPriorAgeDist(xNew, thetaMatNow, exPrior)
+    agePostNew <- likeAgesNew + CalcPriorAgeDist(xNew, thetaMatNow, exPrior) # inf in likeAgesNew
     
     likeMortNew <- CalcLikeMort(xNew, thetaMatNow)
     sexPostNew <- likeAgesNew + (sexFemNow) * log(probFem) +
       (1 - sexFemNow) * log(1 - probFem)
     
-    r <- exp(agePostNew - agePostNow)[idNoDeath]
+    r <- exp(agePostNew - agePostNow)[idNoDeath] # infinities in agePostNew & Now
     z <- runif(length(idNoDeath))
     idUpd <- idNoDeath[r > z]
+    idUpd <-idUpd[!(is.na(idUpd))] 
     if (length(idUpd) > 0) {
       likeMortNow[idUpd] <- likeMortNew[idUpd]
       likeAgesNow[idUpd] <- likeAgesNew[idUpd]
@@ -325,7 +313,7 @@ RunMCMC <- function(sim) {
       sexPostNow[idUpd] <- sexPostNew[idUpd]
     }
     parPostNow <- sum(likeMortNow) + 
-      sum(dtnorm(c(thetaNow), 
+      sum(dtnorm(c(thetaNow),
                  rep(defPars$priorMean, each = ncovs),
                  rep(defPars$priorSd, each = ncovs), 
                  low = rep(defPars$low, each = ncovs), log = TRUE))
@@ -338,7 +326,7 @@ RunMCMC <- function(sim) {
     idMnew <- which(sexFemNew == 0 & unknownFate == 1 &
                       ageToLast >= minDispAge & ageToLast <= maxDispAge)  
     idNMnew <- (1:n)[!(1:n %in% idMnew)] 
-    thetaMatNew <- CalcCovTheta(thetaNow, covarsNew)  ## was thetaStart, on purpose?
+    thetaMatNew <- CalcCovTheta(thetaNow, covarsNew)
     likeMortNew <- CalcLikeMort(xNow, thetaMatNew)
     likeAgesNew <- CalcLikeAges(xNow, thetaMatNew, idM = idMnew, 
                                 idNM = idNMnew)
@@ -349,16 +337,19 @@ RunMCMC <- function(sim) {
     
     r <- exp(sexPostNew - sexPostNow)[idNoSex]
     z <- runif(length(idNoSex))
+    
     idUpd2 <- idNoSex[r > z]
+    idUpd2 <-idUpd2[!(is.na(idUpd2))]  # removes the NA's from idUpd (from when pdf is 0, and log like -inf)
     if (length(idUpd2) > 0) {
       likeMortNow[idUpd2] <- likeMortNew[idUpd2]
       likeAgesNow[idUpd2] <- likeAgesNew[idUpd2]
       agePostNow[idUpd2] <- agePostNew[idUpd2]
-      covarsNow[idUpd2, ] <- covarsNow[idUpd2, ]
+      covarsNow[idUpd2, ] <- covarsNew[idUpd2, ]  # was covarsNow, Jul, 02 Nov
       thetaMatNow[idUpd2, ] <- thetaMatNew[idUpd2, ]
       sexFemNow[idUpd2] <- sexFemNew[idUpd2]
       sexPostNow[idUpd2] <- sexPostNew[idUpd2]
     }
+    
     idMnow <- which(sexFemNow == 0 & unknownFate == 1 &
                       ageToLast >= minDispAge & ageToLast <= maxDispAge)  
     idNMnow <- (1:n)[!(1:n %in% idMnow)]
