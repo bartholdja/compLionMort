@@ -100,13 +100,13 @@ LikeMigr <- function(par) {
 # Likelihoods
 # Define the mortality likelihood:
 CalcLikeMort <- function(x, th) {
-  CalcPdf(th, x) / CalcSurv(th, ageTrunc)#  denominator becomes 1 for non-truncated individuals
+  log(CalcPdf(th, x) / CalcSurv(th, ageTrunc))#  denominator becomes 1 for non-truncated individuals
 }
 
 # Define the emigration likelihood:
 CalcLikeEmigr <- function(x, idM = idMigr, idNM = idNonMigr) {
   like <- x * 0 + 1
-  like[idM] <- 1 - exp(-lamMigr * (x[idM] - minDispAge))
+  like[idM] <- 1 - exp(-lamMigr * (x[idM] - minDispAge))  # f(x) = 1 - exp(-alpha * x)
   like[idNM] <- exp(-lamNonMigr * (x[idNM] - ageToLast[idNM]))  # f(x) = exp(-alpha * x)
   return(like)
 }
@@ -217,7 +217,7 @@ RunMCMC <- function(sim) {
   }
   
   thetaMatNow <- CalcCovTheta(thetaNow, covarsNow)
-  likeMortNow <- CalcLikeMort(xStart, thetaMatNow)
+  likeMortNow <- CalcLikeMort(xNow, thetaMatNow)
   likeAgesNow <- CalcLikeAges(xStart, thetaMatNow, idM = idMnow, 
                               idNM = idNMnow)
   parPostNow <- sum(likeMortNow) + 

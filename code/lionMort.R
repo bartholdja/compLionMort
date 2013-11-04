@@ -7,12 +7,15 @@ if ("fernando" %in% list.files("/Users/")) {
   load("/Users/fernando/FERNANDO/PROJECTS/1.ACTIVE/JuliaLions/data/hwangeMortAnal.03Sep.rdata")
 } else {
   setwd("/Users/Viktualia/Documents/GitHub/compLionMort")
-  load("/Users/Viktualia/Dropbox/JuliaLions/data/hwangeMortAnal.03Sep.rdata")
+  load("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/data/hwange/hwangeMortAnal.03Sep.rdata")
 }
 
 
 # Source functions:
 source("code/functions.R")
+
+# want diagnostic plots?:
+plotInd <- TRUE
 
 # Extract variables:
 study <- julian(as.Date(c("1999-06-01", "2013-06-26")), 
@@ -113,10 +116,52 @@ sfLibrary(msm, warn.conflicts = FALSE)
 out <- sfClusterApplyLB(1:nsim, RunMCMC)
 sfStop()
 
+# plot the mean survival curves
+
+if(plotInd){
+  if ("fernando" %in% list.files("/Users/")) {
+    pdf("/Users/fernando/FERNANDO/PROJECTS/1.ACTIVE/JuliaLions/plots/hwange04Nov.pdf")
+  } else {
+    pdf("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/plots/hwange04Nov.pdf")
+  }
+  
+keep <- seq(1000, niter, 20)
+parMat <- out[[1]]$pars[keep, ]
+for (i in 2:nsim) {
+  parMat <- rbind(parMat, out[[i]]$pars[keep, ])
+}
+
+parQuant <- cbind(apply(parMat, 2, mean), apply(parMat, 2, sd),
+                  t(apply(parMat, 2, quantile, c(0.025, 0.975))))
+colnames(parQuant) <- c("Mean", "SE", "2.5%", "97.5%")
+
+thetaFemNew <-  matrix(parQuant[1:5, 1], 1, 5)
+colnames(thetaFemNew) <- thetaNames[1:5]
+thetaMalNew <-  matrix(parQuant[6:10, 1], 1, 5)
+colnames(thetaMalNew) <- thetaNames[6:10]
+xv <- seq(0, 25, 0.1)
+class(thetaMalNew) <- c(model, shape)
+class(thetaFemNew) <- class(thetaMalNew)
+
+ySurvFemNew <- CalcSurv(thetaFemNew, xv)
+ySurvMalNew <- CalcSurv(thetaMalNew, xv)
+
+
+  plot(xv, ySurvFemNew, col = 2, lwd = 2, lty = 1, type = "l")
+  lines(xv, ySurvMalNew, col = 4, lwd = 2, lty = 1)
+  legend("topright", c("females", "males"),
+         lwd = c(2,2), lty = c(1, 1), col = c(2,4))
+dev.off()
+}
+
 rm(list = setdiff(ls(), c("out", "nsim", "niter", "model", "shape", "ncovs", "names", "npars", 
                           "defPars", "thetaNames")))
 
-save.image(file = "/Users/Viktualia/Desktop/outputHwang.Rdata")
+if ("fernando" %in% list.files("/Users/")) {
+  save.image("/Users/fernando/FERNANDO/PROJECTS/1.ACTIVE/JuliaLions/results/outputHwang04Nov2.Rdata")
+} else {
+  save.image("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/results/outputHwang04Nov2.Rdata")
+}
 
 pdf("results/trace009.pdf", width = 15, height = 10)
 par(mfrow = c(ncovs, defPars$length))

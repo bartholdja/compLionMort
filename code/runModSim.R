@@ -15,17 +15,6 @@ source("code/functions.R")
 
 # Extract variables:
 n <- nrow(dat)
-
-#study <- julian(as.Date(c("1999-06-01", "2013-06-26")), 
-#                origin = as.POSIXct("1970-01-01"))
-#birth <- julian(as.Date(hwang[, "birthDate"]), 
-#                origin = as.POSIXct("1970-01-01"))
-#last <- julian(as.Date(hwang[, "deathLsDate"]), 
-#               origin = as.POSIXct("1970-01-01"))
-#death <- last
-#death[hwang$alive == 1 | hwang$missing == 1 | hwang$presumDead == 1] <- NA
-#first <- rep(NA, n)
-#idLeftTr <- which(hwang$immigration == 3)
 ageTrunc <- rep(0, n)  # no truncation in simulation study
 unknownFate <- dat$noDeath
 idNoDeath <- which(unknownFate == 1)
@@ -34,21 +23,25 @@ sex <- as.character(dat[, 'sexNew'])
 minDispAge <- 1.75
 maxDispAge <- 4.25
 
-
 # in Pusey & Packer 1987 all males dispersed by the age of 4.2, minimum age 1.8 (1 ind out of 12)
 # Elliot et al (submitted) all males dispersed by the age of 3.75, minimum age 1.66 (no male survived younger than 2.6)
 idMigr <- which((sex == "m") & unknownFate == 1 & (
   ageToLast >= minDispAge & ageToLast <= maxDispAge))  
+# this is to be deleted later
+test <- F
+if (test == T) {
+  test <- data.frame(ageToLast[ageToLast >= minDispAge & ageToLast <= maxDispAge & unknownFate == 1 & sex == "m"], dat$ageYrs[ageToLast >= minDispAge & ageToLast <= maxDispAge & unknownFate == 1 & sex == "m"])
+  test$diff <- test$diff <- test[, 1] - test[ ,2]
+  idMigr <- idMigr[-which(test$diff == 0)]
+}
 idNonMigr <- (1:length(sex))[!(1:length(sex) %in% idMigr)]
 idNoSex <- which(sex == "u")
 probFem <- 0.45 # proportion females at birth
-
 
 # Emigration probability of male lions aged 2.5 to 4.25
 ageLastMigr <- ageToLast[idMigr]
 out <- optimise(LikeMigr, c(0, 10))
 lamMigr <- out$minimum
-lamMigr <- 1.05
 
 # Non-resighting probability conditioned on being alive and in the study area:
 # for everyone other than male lions aged 1.75 to 4.25
@@ -115,8 +108,13 @@ sfLibrary(msm, warn.conflicts = FALSE)
 out <- sfClusterApplyLB(1:nsim, RunMCMC)
 sfStop()
 
-rm(list = setdiff(ls(), c("out", "nsim", "niter", "model", "shape", "ncovs",
-                          "names", "defPars", "npars", "dat", "thetaNames")))
+rm(list = setdiff(ls(), c("out", "nsim", "niter", "model", "shape", "ncovs", "lamMigr", "lamNonMigr",
+                          "names", "defPars", "npars", "dat", "thetaNames", "thetaFemOr", "thetaMalOr")))
 
-save.image("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/results/simOut.Rdata")
+if ("fernando" %in% list.files("/Users/")) {
+  save.image("/Users/fernando/FERNANDO/PROJECTS/1.ACTIVE/JuliaLions/results/simOut.Rdata")
+} else {
+  save.image("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/results/simOutTestWtDeads.Rdata")
+}
 
+ 

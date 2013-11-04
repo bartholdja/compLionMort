@@ -152,9 +152,9 @@ datNew <- rbind(dat, addImmig)
 dat <- datNew
 
 # all individ last seen < 1.75, 10% of females, 10 % of immigrating males 
-# get an observed death
-# of the migrators 10 % of those with death ages between min and max dispersal age
-# get an observed death
+# get an observed death
+# of the migrators 10 % of those with death ages between min and max dispersal age
+# get an observed death
 dat$noDeath <- rep(NA, nrow(dat))  # 0 means  observed death, 1 no observed death
 dat$noDeath[dat$ageYrs <= 1.75] <- 0 # everyone died younger than 1.75 yrs assumed dead
 
@@ -174,4 +174,9 @@ thetaMalOr <- thMal
 
 rm(list = setdiff(ls(), c("dat", "thetaFemOr", "thetaMalOr")))
 
+if ("fernando" %in% list.files("/Users/")) {
+  save.image("/Users/fernando/FERNANDO/PROJECTS/1.ACTIVE/JuliaLions/results/simOut.Rdata")
+} else {
+  save.image("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/results/simOut.Rdata")
+}
 save.image("/Users//Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/data/hwange/simDatHwang.rdata")
