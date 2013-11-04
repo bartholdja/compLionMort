@@ -48,6 +48,7 @@ probFem <- 0.45 # proportion females at birth
 ageLastMigr <- ageToLast[idMigr]
 out <- optimise(LikeMigr, c(0, 10))
 lamMigr <- out$minimum
+lamMigr <- 1.05
 
 # Non-resighting probability conditioned on being alive and in the study area:
 # for everyone other than male lions aged 1.75 to 4.25
@@ -115,7 +116,7 @@ out <- sfClusterApplyLB(1:nsim, RunMCMC)
 sfStop()
 
 rm(list = setdiff(ls(), c("out", "nsim", "niter", "model", "shape", "ncovs",
-                          "names", "defPars", "npars")))
+                          "names", "defPars", "npars", "dat", "thetaNames")))
 
-save.image("/Users/Viktualia/Documents/GitHub/compLionMort/results/simDatHwang.Rdata")
+save.image("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/results/simOut.Rdata")
 

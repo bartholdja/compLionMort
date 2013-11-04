@@ -5,7 +5,7 @@ if ("fernando" %in% list.files("/Users/")) {
   load("/Users/fernando/FERNANDO/PROJECTS/1.ACTIVE/JuliaLions/results/simHwangOutput.Rdata")
 } else {
   setwd("/Users/Viktualia/Documents/GitHub/compLionMort")
-  load("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/results/simHwangOutput.Rdata")
+  load("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/results/results/simOut.Rdata")
 }
 
 source("code/functions.R")
@@ -30,6 +30,10 @@ for (i in 2:nsim) {
 parQuant <- cbind(apply(parMat, 2, mean), apply(parMat, 2, sd),
                   t(apply(parMat, 2, quantile, c(0.025, 0.975))))
 colnames(parQuant) <- c("Mean", "SE", "2.5%", "97.5%")
+
+thetaNames <- paste(rep(defPars$name, ncovs), 
+                    rep(names, each = defPars$len), sep = '.')
+
 
 thetaFemNew <-  matrix(parQuant[1:5, 1], 1, 5)
 colnames(thetaFemNew) <- thetaNames[1:5]
