@@ -50,7 +50,8 @@ yMortFem <- CalcMort(thFem, xv)
 yMortMal <- CalcMort(thMal, xv)
 
 if (plotInd) {
-  plot(xv, yMortFem, col = 2, type = "l", lwd = 2, ylab = "Mortality hazard", xlab = "Age (yrs)")
+  plot(xv, yMortFem, col = 2, type = "l", lwd = 2, ylab = "Mortality hazard", 
+       xlab = "Age (yrs)")
   lines(xv, yMortMal, col = 4, lwd = 2)
   legend("topleft", c("females", "males"), lwd = c(2,2), col = c(2,4))
 }
@@ -59,7 +60,8 @@ ySurvFem <- CalcSurv(thFem, xv)
 ySurvMal <- CalcSurv(thMal, xv)
 
 if(plotInd) {
-  plot(xv, ySurvFem, col = 2, type = "l", lwd = 2, ylab = "Survival probability", xlab = "Age (yrs)")
+  plot(xv, ySurvFem, col = 2, type = "l", lwd = 2, 
+       ylab = "Survival probability", xlab = "Age (yrs)")
   lines(xv, ySurvMal, col = 4, lwd = 2)
   legend("topright", c("females", "males"), lwd = c(2,2), col = c(2,4))
 }
@@ -74,7 +76,8 @@ xDfem <- ageInt[intFem]
 xDmal <- ageInt[intMal]
 
 # create data frame
-dat <- data.frame(1:(nFem + nMal), c(xDfem, xDmal), c(rep("f",nFem), rep("m", nMal)))
+dat <- data.frame(1:(nFem + nMal), c(xDfem, xDmal), c(rep("f",nFem), 
+                                                      rep("m", nMal)))
 names(dat) <- c("id", "ageYrs", "sex")
 
 

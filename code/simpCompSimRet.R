@@ -2,7 +2,7 @@ rm(list = ls())
 
 if ("fernando" %in% list.files("/Users/")) {
   setwd("/Users/fernando/FERNANDO/PROJECTS/1.ACTIVE/JuliaLionsGithub/compLionMort/")
-  load("/Users/fernando/FERNANDO/PROJECTS/1.ACTIVE/JuliaLions/results/simHwangOutput.Rdata")
+  load("/Users/fernando/FERNANDO/PROJECTS/1.ACTIVE/JuliaLions/results/simOut3.Rdata")
 } else {
   setwd("/Users/Viktualia/Documents/GitHub/compLionMort")
   load("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/data/hwange/simDatHwang.rdata")
@@ -16,6 +16,8 @@ nsim <- 4
 xv <- seq(0, 25, 0.1)
 ySurvFem <- CalcSurv(thetaFemOr, xv)
 ySurvMal <- CalcSurv(thetaMalOr, xv)
+yMortFem <- CalcMort(thetaFemOr, xv)
+yMortMal <- CalcMort(thetaMalOr, xv)
 
 
 keep <- seq(1000, niter, 20)
@@ -40,6 +42,8 @@ class(thetaFemNew) <- class(thetaFemOr)
 
 ySurvFemNew <- CalcSurv(thetaFemNew, xv)
 ySurvMalNew <- CalcSurv(thetaMalNew, xv)
+yMortFemNew <- CalcMort(thetaFemNew, xv)
+yMortMalNew <- CalcMort(thetaMalNew, xv)
 
 if ("fernando" %in% list.files("/Users/")) {
   pdf("/Users/fernando/FERNANDO/PROJECTS/1.ACTIVE/JuliaLions/plots/hwange04Nov.pdf")
@@ -57,4 +61,14 @@ if(plotInd){
          lwd = c(2,2, 2, 2), lty = c(1, 1, 2, 2), col = c(2,4, 2, 4))
 } 
 dev.off()  
+
+if(plotInd){
+  plot(xv, yMortFem, col = 2, type = "l", lwd = 2, ylab = "Survival probability", xlab = "Age (yrs)")
+  lines(xv, yMortMal, col = 4, lwd = 2)
+  
+  lines(xv, yMortFemNew, col = 2, lwd = 2, lty = 2)
+  lines(xv, yMortMalNew, col = 4, lwd = 2, lty = 2)
+  legend("topright", c("females sim", "males sim", "females retrieved", "males retrieved"),
+         lwd = c(2,2, 2, 2), lty = c(1, 1, 2, 2), col = c(2,4, 2, 4))
+} 
 
