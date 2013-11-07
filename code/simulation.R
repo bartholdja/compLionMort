@@ -162,7 +162,7 @@ dat$noDeath[dat$sex == "f"] <- 0 # 10 % of females have an observed death
 dat$noDeath[dat$sex == "f" & dat$ageYrs > 1.75][rbinom(length(dat$noDeath[dat$sex == "f" & dat$ageYrs > 1.75]), 1, 0.9) == 1] <- 1 # 10 % of females by chance observed death
 
 dat$noDeath[dat$immigration == 1] <- 0 # 10 % of the immigrating males have an observed death
-dat$noDeath[dat$immigration == 1][rbinom(length(dat$noDeath[dat$immigration == 1]), 1, 0.9) == 1] <- 1  # 10 % of females by chance observed death
+dat$noDeath[dat$immigration == 1][rbinom(talength(dat$noDeath[dat$immigration == 1]), 1, 0.9) == 1] <- 1  # 10 % of females by chance observed death
 
 dat$noDeath[dat$ageYrs > minDispAge & dat$ageYrs <= maxDispAge & dat$sex == "m" & dat$immigration == 0] <- 0 # 10 % of males with death ages between min and max dispersal age have observed ddeath
 dat$noDeath[dat$ageYrs > minDispAge & dat$ageYrs <= maxDispAge & dat$sex == "m" & dat$immigration == 0][rbinom(length(dat$noDeath[dat$ageYrs > minDispAge & dat$ageYrs <= maxDispAge & dat$sex == "m" & dat$immigration == 0]), 1, 0.9) == 1] <- 1
