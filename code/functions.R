@@ -130,6 +130,13 @@ CalcCovTheta <- function(th, covars = NA) {
   return(theta)
 }
 
+CalcDispLike <- function(xd, xdm, sdxd, disp, resid) {
+  dispPdf <- xd * 0
+  
+}
+SampleDispState <- function() {
+  
+}
 # Set starting values:
 SetDefaultTheta  <- function() {
   if (model == "ct") {

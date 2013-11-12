@@ -1,10 +1,11 @@
+# Serengeti lions:
 rm(list = ls())
 
 library(msm)
 library(RColorBrewer)
 if ("fernando" %in% list.files("/Users/")) {
   setwd("/Users/fernando/FERNANDO/PROJECTS/1.ACTIVE/JuliaLionsGithub/compLionMort/")
-  load("/Users/fernando/FERNANDO/PROJECTS/1.ACTIVE/JuliaLions/data/hwange/hwangeMortAnal.03Sep.rdata")
+  seren <- read.csv("/Users/fernando/FERNANDO/PROJECTS/1.ACTIVE/JuliaLions/data/serengeti/seren.csv", header = TRUE)
 } else {
   setwd("/Users/Viktualia/Documents/GitHub/compLionMort")
   load("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/data/hwange/hwangeMortAnal.03Sep.rdata")
@@ -17,44 +18,47 @@ source("code/functions.R")
 plotInd <- TRUE
 
 # Extract variables:
-study <- julian(as.Date(c("1999-06-01", "2013-06-26")), 
-                origin = as.POSIXct("1970-01-01"))
-n <- nrow(hwang)
-birth <- julian(as.Date(hwang[, "birthDate"]), 
-                origin = as.POSIXct("1970-01-01"))
-last <- julian(as.Date(hwang[, "deathLsDate"]), 
-               origin = as.POSIXct("1970-01-01"))
+study <- julian(as.Date(c("1966-04-01", "2013-08-01")), 
+                origin = as.POSIXct("1950-01-01"))
+n <- nrow(seren)
+birth <- julian(as.Date(seren[, "birthDate"]), 
+                origin = as.POSIXct("1950-01-01"))
+first <- julian(as.Date(seren[, "firstSeenDate"]), 
+               origin = as.POSIXct("1950-01-01"))
+last <- julian(as.Date(seren[, "lsDate"]), 
+               origin = as.POSIXct("1950-01-01"))
 death <- last
-death[hwang$alive == 1 | hwang$missing == 1 | hwang$presumDead == 1] <- NA
+death[seren$alive == 1 | is.na(seren$dead)] <- NA
 unknownFate <- rep(0, n)
-unknownFate[hwang$missing == 1 | hwang$presumDead == 1] <- 1  # indicator needed for update of idM in MCMC
-unknownFate[hwang$ageYrs < 1.75] <- 0
+unknownFate[is.na(death)] <- 1  # indicator needed for update of idM in MCMC
+unknownFate[seren$ageYrs < 1.75] <- 0
 idNoDeath <- which(unknownFate == 1)
-first <- rep(NA, n)
-sex <- as.character(hwang[, 'sex'])
-idLeftTr <- which(hwang$immigration == 3)
+sex <- as.character(seren[, 'sex'])
+idLeftTr <- which(birth < study[1] | !is.na(seren$firstSeenDate))
 ageTrunc <- apply(cbind(study[1] - birth, 0), 1, max) / 365.25
+ageTrunc[!is.na(seren$firstSeenDate)] <- 
+  c(first - birth)[!is.na(seren$firstSeenDate)] / 365.25
 ageToLast <- (last - birth) / 365.25
+ageToFirst <- rep(0, n)
+ageToFirst[!is.na(first)] <- c(first - birth)[!is.na(first)] / 365.25
 # in Pusey & Packer 1987 all males dispersed by the age of 4.2, minimum age 1.8 (1 ind out of 12)
 # Elliot et al (submitted) all males dispersed by the age of 3.75, minimum age 1.66 (no male survived younger than 2.6)
-minDispAge <- 1.75
-maxDispAge <- 4.25
-idMigr <- which((sex == "m") & hwang$immigration == 2 & unknownFate == 1 &
+minDispAge <- 1.5
+#maxDispAge <- 4.25
+idIM <- which(sex == "m" & !is.na(first) & ageToFirst >= minDispAge)
+idEM <- which(sex == "m" & unknownFate == 1 & ageToLast >= minDispAge)
+
+idMigr <- which((sex == "m") & seren$immigration == 2 & unknownFate == 1 &
                   ageToLast >= minDispAge & ageToLast <= maxDispAge)
 idNonMigr <- (1:n)[!(1:n) %in% idMigr]
-idNoSex <- which(sex == "u")
+idNoSex <- which(sex == "u" | sex == "x")
 probFem <- 0.45
 
 # Add dispersing state:
 dispStart <- rep(0, n)
-dispStart[idMigr] <- 1
+dispStart[idEM] <- 1
 resid <- dispStart * 0 + 1
-resid[hwang$immigration == 2] <- 0
-
-# Emigration probability of male lions aged minimum dispersal to maximumg disperal age
-ageLastMigr <- ageToLast[idMigr]
-out <- optimise(LikeMigr, c(0, 10))
-lamMigr <- out$minimum
+resid[seren$immigration == 2] <- 0
 
 # Non-resighting probability conditioned on being alive and in the study area:
 # for everyone other than male lions aged between minimum and maximum dispersal age
@@ -121,7 +125,7 @@ sfLibrary(msm, warn.conflicts = FALSE)
 out <- sfClusterApplyLB(1:nsim, RunMCMC)
 sfStop()
 
-# plot the mean survival curves
+# plot the mean survival curves
 
 if(plotInd){
   if ("fernando" %in% list.files("/Users/")) {
@@ -130,33 +134,33 @@ if(plotInd){
     pdf("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/plots/hwange04Nov.pdf")
   }
   
-keep <- seq(1000, niter, 20)
-parMat <- out[[1]]$pars[keep, ]
-for (i in 2:nsim) {
-  parMat <- rbind(parMat, out[[i]]$pars[keep, ])
-}
-
-parQuant <- cbind(apply(parMat, 2, mean), apply(parMat, 2, sd),
-                  t(apply(parMat, 2, quantile, c(0.025, 0.975))))
-colnames(parQuant) <- c("Mean", "SE", "2.5%", "97.5%")
-
-thetaFemNew <-  matrix(parQuant[1:5, 1], 1, 5)
-colnames(thetaFemNew) <- thetaNames[1:5]
-thetaMalNew <-  matrix(parQuant[6:10, 1], 1, 5)
-colnames(thetaMalNew) <- thetaNames[6:10]
-xv <- seq(0, 25, 0.1)
-class(thetaMalNew) <- c(model, shape)
-class(thetaFemNew) <- class(thetaMalNew)
-
-ySurvFemNew <- CalcSurv(thetaFemNew, xv)
-ySurvMalNew <- CalcSurv(thetaMalNew, xv)
-
-
+  keep <- seq(1000, niter, 20)
+  parMat <- out[[1]]$pars[keep, ]
+  for (i in 2:nsim) {
+    parMat <- rbind(parMat, out[[i]]$pars[keep, ])
+  }
+  
+  parQuant <- cbind(apply(parMat, 2, mean), apply(parMat, 2, sd),
+                    t(apply(parMat, 2, quantile, c(0.025, 0.975))))
+  colnames(parQuant) <- c("Mean", "SE", "2.5%", "97.5%")
+  
+  thetaFemNew <-  matrix(parQuant[1:5, 1], 1, 5)
+  colnames(thetaFemNew) <- thetaNames[1:5]
+  thetaMalNew <-  matrix(parQuant[6:10, 1], 1, 5)
+  colnames(thetaMalNew) <- thetaNames[6:10]
+  xv <- seq(0, 25, 0.1)
+  class(thetaMalNew) <- c(model, shape)
+  class(thetaFemNew) <- class(thetaMalNew)
+  
+  ySurvFemNew <- CalcSurv(thetaFemNew, xv)
+  ySurvMalNew <- CalcSurv(thetaMalNew, xv)
+  
+  
   plot(xv, ySurvFemNew, col = 2, lwd = 2, lty = 1, type = "l")
   lines(xv, ySurvMalNew, col = 4, lwd = 2, lty = 1)
   legend("topright", c("females", "males"),
          lwd = c(2,2), lty = c(1, 1), col = c(2,4))
-dev.off()
+  dev.off()
 }
 
 rm(list = setdiff(ls(), c("out", "nsim", "niter", "model", "shape", "ncovs", "names", "npars", 
@@ -265,7 +269,6 @@ for (i in 1:2) {
   lines(xv[1:rangesSurv[i]], mortList[[i]][1:rangesSurv[i], 1], col = 'white',
         lwd = 2)
 }
-
 
 
 
