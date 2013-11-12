@@ -10,7 +10,6 @@ if ("fernando" %in% list.files("/Users/")) {
   load("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/data/hwange/hwangeMortAnal.03Sep.rdata")
 }
 
-
 # Source functions:
 source("code/functions.R")
 
@@ -29,6 +28,7 @@ death <- last
 death[hwang$alive == 1 | hwang$missing == 1 | hwang$presumDead == 1] <- NA
 unknownFate <- rep(0, n)
 unknownFate[hwang$missing == 1 | hwang$presumDead == 1] <- 1  # indicator needed for update of idM in MCMC
+unknownFate[hwang$ageYrs < 1.75] <- 0
 idNoDeath <- which(unknownFate == 1)
 first <- rep(NA, n)
 sex <- as.character(hwang[, 'sex'])

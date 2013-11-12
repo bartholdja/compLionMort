@@ -6,7 +6,7 @@ if ("fernando" %in% list.files("/Users/")) {
 } else {
   setwd("/Users/Viktualia/Documents/GitHub/compLionMort")
   load("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/data/hwange/simDatHwang.rdata")
-  load("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/results/simOutTestWtDeads.Rdata")
+  load("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/results/simOutTestPDF.Rdata")
 }
 
 source("code/functions.R")
