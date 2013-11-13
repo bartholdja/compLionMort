@@ -8,8 +8,13 @@ if ("fernando" %in% list.files("/Users/")) {
   seren <- read.csv("/Users/fernando/FERNANDO/PROJECTS/1.ACTIVE/JuliaLions/data/serengeti/seren.csv", header = TRUE)
 } else {
   setwd("/Users/Viktualia/Documents/GitHub/compLionMort")
-  load("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/data/hwange/hwangeMortAnal.03Sep.rdata")
+  seren <- read.csv("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/data/serengeti/seren.csv", header = TRUE)
 }
+
+#test2 <- ageToFirst[which(seren$nomFirstSeenMoth == 1)]
+#test1 <- ageToLast[which(seren$nomFirstSeenMoth == 1)]
+#test1 - test2
+# seren <- seren[seren$nomFirstSeenMoth != 1, ]
 
 # Source functions:
 source("code/functions.R")
@@ -20,45 +25,64 @@ plotInd <- TRUE
 # Extract variables:
 study <- julian(as.Date(c("1966-04-01", "2013-08-01")), 
                 origin = as.POSIXct("1950-01-01"))
+
 n <- nrow(seren)
+
+# time objects (birth, first, last, death)
 birth <- julian(as.Date(seren[, "birthDate"]), 
-                origin = as.POSIXct("1950-01-01"))
+                origin = as.POSIXct("1950-01-01")) # for age at birth
 first <- julian(as.Date(seren[, "firstSeenDate"]), 
-               origin = as.POSIXct("1950-01-01"))
-last <- julian(as.Date(seren[, "lsDate"]), 
+               origin = as.POSIXct("1950-01-01")) # for age at immigration
+last <- julian(as.Date(seren[, "lsDate"]), # for age at emigration/death
                origin = as.POSIXct("1950-01-01"))
 death <- last
-death[seren$alive == 1 | is.na(seren$dead)] <- NA
-unknownFate <- rep(0, n)
-unknownFate[is.na(death)] <- 1  # indicator needed for update of idM in MCMC
-unknownFate[seren$ageYrs < 1.75] <- 0
-idNoDeath <- which(unknownFate == 1)
-sex <- as.character(seren[, 'sex'])
-idLeftTr <- which(birth < study[1] | !is.na(seren$firstSeenDate))
-ageTrunc <- apply(cbind(study[1] - birth, 0), 1, max) / 365.25
-ageTrunc[!is.na(seren$firstSeenDate)] <- 
-  c(first - birth)[!is.na(seren$firstSeenDate)] / 365.25
-ageToLast <- (last - birth) / 365.25
-ageToFirst <- rep(0, n)
-ageToFirst[!is.na(first)] <- c(first - birth)[!is.na(first)] / 365.25
+death[seren$alive == 1 | is.na(seren$dead)] <- NA  # 347 ind. alive, 190 recoveries
+
+# minimum dispersal age
 # in Pusey & Packer 1987 all males dispersed by the age of 4.2, minimum age 1.8 (1 ind out of 12)
 # Elliot et al (submitted) all males dispersed by the age of 3.75, minimum age 1.66 (no male survived younger than 2.6)
 minDispAge <- 1.5
-#maxDispAge <- 4.25
+
+# indicator and index for open fate after last seen
+unknownFate <- rep(0, n)  # 0: observed death, 1: open fate
+unknownFate[is.na(death)] <- 1  # indicator needed for update of idM in MCMC
+# unknownFate[seren$ageLS < minDispAge] <- 0  #not necessary (will have idNM)
+idNoDeath <- which(unknownFate == 1)
+
+# sex
+sex <- as.character(seren[, 'sex'])
+
+# left truncation
+idLeftTr <- which(birth < study[1] | !is.na(seren$firstSeenDate))
+ageTrunc <- apply(cbind(study[1] - birth, 0), 1, max) / 365.25  # born before study start
+ageTrunc[!is.na(first)] <-
+  c(first - birth)[!is.na(first)] / 365.25  # immigrants
+
+# age at last seen
+ageToLast <- (last - birth) / 365.25
+
+
+# age at first seen (0 for natives, ageTrunc for immigrants)
+ageToFirst <- rep(0, n)
+ageToFirst[!is.na(first)] <- ageTrunc[!is.na(first)] 
+
+# indicate and indices for immigrants, potential emigrants, and not-emigrants
 idIM <- which(sex == "m" & !is.na(first) & ageToFirst >= minDispAge)
 idEM <- which(sex == "m" & unknownFate == 1 & ageToLast >= minDispAge)
-
-idMigr <- which((sex == "m") & seren$immigration == 2 & unknownFate == 1 &
-                  ageToLast >= minDispAge & ageToLast <= maxDispAge)
-idNonMigr <- (1:n)[!(1:n) %in% idMigr]
-idNoSex <- which(sex == "u" | sex == "x")
-probFem <- 0.45
+idNEM <- (1:n)[!(1:n) %in% idIEM]  # not emigrator
 
 # Add dispersing state:
 dispStart <- rep(0, n)
 dispStart[idEM] <- 1
 resid <- dispStart * 0 + 1
 resid[seren$immigration == 2] <- 0
+
+# index for unknown sex
+idNoSex <- which(sex == "u" | sex == "x")
+# proportion of females among newborns
+probFem <- 0.45
+
+
 
 # Non-resighting probability conditioned on being alive and in the study area:
 # for everyone other than male lions aged between minimum and maximum dispersal age

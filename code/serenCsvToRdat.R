@@ -26,6 +26,7 @@ serenM$ageYrs <- as.numeric((serenM$lsDate - serenM$birthDate)/365.25)
 serenM$firstSeenDate <- c("1900-01-01", rep(NA, (nrow(serenM)-1)))
 serenM$firstSeenDate <- as.Date(serenM$firstSeenDate)
 
+# make cumulative firstSeenDate (from the 4 different FSdate categories)
 for (i in 1:nrow(serenM)){
   if(sum(!is.na(c(serenM$firstSeenRes[i]
                   ,serenM$firstSeenNomNevRes[i],
@@ -124,7 +125,13 @@ for (i in seq(1, 379, 2)){
 }
 
 seren <- seren[-(seq(1, 379, 2)), ]
+# change one entry of sex from m? to u
+seren$sex[seren$sex == "m?"] <- "u"
 
+names(seren)
+
+seren$ageLS <- (seren$lsDate - seren$birthDate)/365.25
+head(seren$ageLS)
 
 write.csv(seren, "data/Serengeti/seren.csv")
 rm(list = ls())
