@@ -23,6 +23,22 @@ serenM$firstSeenIm <- as.Date(serenM$firstSeenIm)
 serenM$lsDate <- as.Date(serenM$lsDate)
 #load("data/serengeti/serenMalCens01Aug2013.Rdata")
 serenM$ageYrs <- as.numeric((serenM$lsDate - serenM$birthDate)/365.25)
+serenM$firstSeenDate <- c("1900-01-01", rep(NA, (nrow(serenM)-1)))
+serenM$firstSeenDate <- as.Date(serenM$firstSeenDate)
+
+for (i in 1:nrow(serenM)){
+  if(sum(!is.na(c(serenM$firstSeenRes[i]
+                  ,serenM$firstSeenNomNevRes[i],
+                  serenM$firstSeenNomLatRes[i], serenM$firstSeenIm[i]))) > 0){
+  serenM$firstSeenDate[i] <-  c(serenM$firstSeenRes[i], serenM$firstSeenNomNevRes[i], 
+                             serenM$firstSeenNomLatRes[i], 
+                             serenM$firstSeenIm[i])[!is.na(c(serenM$firstSeenRes[i]
+                             ,serenM$firstSeenNomNevRes[i],
+                              serenM$firstSeenNomLatRes[i], serenM$firstSeenIm[i]))]
+  }
+} 
+rm(i)
+serenM$datInd <- rep("serenM", nrow(serenM))
 save.image("data/serengeti/serenMal05Nov.Rdata")
 rm(serenM)
 
@@ -44,7 +60,7 @@ serenF[ ,which(names(serenF) == "lsDate")] <- factor(serenF[ ,which(names(serenF
 serenF$birthDate <- as.Date(serenF$birthDate)
 serenF$firstSeenDate <- as.Date(serenF$firstSeenDate)
 serenF$lsDate <- as.Date(serenF$lsDate)
-
+serenF$datInd <- rep("serenF", nrow(serenF))
 save.image("data/serengeti/serenFem05Nov.Rdata")
 rm(serenF)
 
@@ -66,6 +82,7 @@ rm(i)
 serenUX[ ,4] <- factor(serenUX[ ,4], levels = levels(serenUX[ ,4])[!levels(serenUX[ ,4]) == "ok"])
 
 serenUX$lsDate <- as.Date(serenUX$lsDate)
+serenUX$datInd <- rep("serenUX", nrow(serenUX))
 save.image("data/serengeti/serenLostUnseen05Nov.Rdata")
 
 
@@ -75,7 +92,7 @@ serenDead <- read.csv("data/serengeti/serenDeaths05Nov.csv",
 serenDead$birthDate <- as.Date(serenDead$birthDate)
 serenDead$lsDate <- as.Date(serenDead$lsDate)
 serenDead$alive <- rep(0, nrow(serenDead))
-
+serenDead$datInd <- rep("serenDead", nrow(serenDead))
 save.image("data/serengeti/serenDeaths05Nov.Rdata")
 rm(list = ls())
 
@@ -96,4 +113,18 @@ seren$id[which(seren$id == "lost")] <- paste("lost", 1:length(seren$id[which(ser
 seren$id <- factor(seren$id, levels = c(levels(seren$id), paste("wait", 1:length(seren$id[which(seren$id == "wait")]), sep = "")))
 seren$id[which(seren$id == "wait")] <- paste("wait", 1:length(seren$id[which(seren$id == "wait")]), sep = "")
 
+double <- seren$id[duplicated(seren$id)]
+
+# transfer the information from "dead" from the observation form the serenDead data to the respektive
+# row from the other data set. Turns out the data are really clean and regular, so that I can 
+# just copy the information from all the uneven rows to the even rows until the length of double
+# is reached
+for (i in seq(1, 379, 2)){
+  seren$dead[i+1] <- seren$dead[i]
+}
+
+seren <- seren[-(seq(1, 379, 2)), ]
+
+
 write.csv(seren, "data/Serengeti/seren.csv")
+rm(list = ls())
