@@ -92,29 +92,32 @@ CalcPriorAgeDist <- function(x, th, exPrior) {   # Prior age distr.: S(x, prior 
   CalcSurv(th, x) / exPrior
 }
 
-# Probability that an individual that is not seen anymore has left the study area:
-LikeMigr <- function(par) {
-  -sum(log(par) - par * (ageLastMigr - minDispAge)) # f(x) = 1 - exp(-alpha * x), F(x) = alpha * exp(-alpha * x)
-}
-
 # Likelihoods
 # Define the mortality likelihood:
-CalcLikeMort <- function(x, th) {
-  log(CalcPdf(th, x) / CalcSurv(th, ageTrunc))#  denominator becomes 1 for non-truncated individuals
+CalcLikeMort <- function(x, th, logPdf) {
+  logPdf - log(CalcSurv(th, ageTrunc))#  denominator becomes 1 for non-truncated individuals
 }
 
 # Define the emigration likelihood:
-CalcLikeEmigr <- function(x, idM = idMigr, idNM = idNonMigr) {
-  like <- x * 0 + 1
-  like[idM] <- 1 - exp(-lamMigr * (x[idM] - minDispAge))  # f(x) = 1 - exp(-alpha * x)
-  like[idNM] <- exp(-lamNonMigr * (x[idNM] - ageToLast[idNM]))  # f(x) = exp(-alpha * x)
+CalcLikeDispPars <- function(lambda, ageToFirst, ageToLast, idIM, likeDispAge) {
+  like <- likeDispAge
+  like[idIM] <- plnorm(ageToFirst[idIM] - minDispAge, lambda[1], lambda[2], 
+                       log = TRUE)
   return(like)
 }
 
+CalcLikeDispAge <- function(lambda, ageToFirst, ageToLast, dispState) {
+  like <- dispState * dlnorm(ageToLast - minDispAge, lambda[1], 
+                             lambda[2], log = TRUE)
+  return(like)
+}
+
+# Likelihood for sexes:
+
+
 # Define the ages at death likelihood:
-CalcLikeAges <- function(x, th, idM = idMigr, idNM = idNonMigr) {
-  like <- log(CalcPdf(th, x)) + # some Inf in the log of pdf because the pdf is 0
-    log(CalcLikeEmigr(x, idM = idM, idNM = idNM)) 
+CalcLikeAges <- function(x, th, logPdf, dispState) {
+  like <- logPdf - dispState * (detectPar * (x - ageToLast))
   return(like)
 }
 
@@ -130,13 +133,12 @@ CalcCovTheta <- function(th, covars = NA) {
   return(theta)
 }
 
-CalcDispLike <- function(xd, xdm, sdxd, disp, resid) {
-  dispPdf <- xd * 0
-  
+# Prior for lambda pars:
+CalcLambdaPrior <- function(lambda, priorLamMean, priorLamSd) {
+  dnorm(lambda[1], priorLamMean[1], priorLamMean[2], log = TRUE) +
+    1 / dgamma(lambda[2]^2, priorLamSd[1], priorLamSd[2], log = TRUE)
 }
-SampleDispState <- function() {
-  
-}
+
 # Set starting values:
 SetDefaultTheta  <- function() {
   if (model == "ct") {
@@ -208,8 +210,8 @@ SetDefaultTheta  <- function() {
 RunMCMC <- function(sim) {
   xNow <- xStart
   sexFemNow <- sexFemStart
-  idMnow <- idMstart
-  idNMnow <- idNMstart
+  idEMnow <- idEM
+  idSTnow <- idST
   covarsNow <- covarsStart
   if (sim == 1) {
     thetaNow <- thetaStart
@@ -222,19 +224,29 @@ RunMCMC <- function(sim) {
                        dimnames = dimnames(thetaStart)) 
     class(thetaNow) <- class(thetaStart)
   }
-  
   thetaMatNow <- CalcCovTheta(thetaNow, covarsNow)
-  likeMortNow <- CalcLikeMort(xNow, thetaMatNow)
-  likeAgesNow <- CalcLikeAges(xStart, thetaMatNow, idM = idMnow, 
-                              idNM = idNMnow)
+  logPdfNow <- CalcPdf(thetaMatNow, xNow)
+  likeMortNow <- CalcLikeMort(xNow, thetaMatNow, logPdfNow)
+  dispStateNow <- rep(0, n)
+  dispStateNow[idEMnow] <- 1
+  likeAgesNow <- CalcLikeAges(xNow, thetaMatNow, logPdfNow, dispStateNow)
   parPostNow <- sum(likeMortNow) + 
                 sum(dtnorm(c(thetaNow), 
                 rep(defPars$priorMean, each = ncovs),
                 rep(defPars$priorSd, each = ncovs), 
                 low = rep(defPars$low, each = ncovs), log = TRUE))
   agePostNow <- likeAgesNow + CalcPriorAgeDist(xNow, thetaMatNow, exPrior)
-  sexPostNow <- likeAgesNow + (sexFemNow) * log(probFem) +
+  
+  sexPostNow <- logPdfNow + (sexFemNow) * log(probFem) +
     (1 - sexFemNow) * log(1 - probFem)
+  likeDispAgeNow <- CalcLikeDispAge(lambdaNow, ageToFirst, ageToLast, 
+                                    dispStateNow)
+  likeDispParNow <- CalcLikeDispPars(lambdaNow, ageToFirst, ageToLast, idIM, 
+                                     likeDispAgeNow)
+  priorLamNow <- CalcLambdaPrior(lambdaNow, priorLamMean, priorLamSd)
+  dispPostParNow <- sum(likeDispParNow) + priorLamNow
+  dispPostAgeNow <- likeDispAgeNow + dispStateNow * log(dispStatePrior) +
+    (1 - dispStateNow) * log(1 - dispStatePrior)
   
   # Output matrices and vectors:
   parMat <- matrix(0, niter, npars, dimnames = list(NULL, thetaNames))
@@ -261,7 +273,8 @@ RunMCMC <- function(sim) {
       thetaNew[pp] <- rtnorm(1, thetaNow[pp], jumpMat[pp], 
                              low = rep(defPars$low, each = ncovs)[pp])
       thetaMatNew <- CalcCovTheta(thetaNew, covarsNow)
-      likeMortNew <- CalcLikeMort(xNow, thetaMatNew)
+      logPdfNew <- CalcPdf(thetaMatNew, xNow)
+      likeMortNew <- CalcLikeMort(xNow, thetaMatNew, logPdfNew)
       parPostNew <- sum(likeMortNew) + 
                     sum(dtnorm(c(thetaNew), 
                     rep(defPars$priorMean, each = ncovs),
@@ -274,25 +287,41 @@ RunMCMC <- function(sim) {
         if (r > z) {
           thetaNow <- thetaNew
           thetaMatNow <- thetaMatNew
+          logPdfNow <- logPdfNew
           likeMortNow <- likeMortNew
-          likeAgesNow <- CalcLikeAges(xNow, thetaMatNow, idM = idMnow,
-                                      idNM = idNMnow)
+          likeAgesNow <- CalcLikeAges(xNow, thetaMatNow, logPdfNow, dispStateNow)
           agePostNow <- likeAgesNow + CalcPriorAgeDist(xNow, thetaMatNow, exPrior)
-          sexPostNow <- likeAgesNow + (sexFemNow) * log(probFem) +
+          sexPostNow <- logPdfNow + (sexFemNow) * log(probFem) +
             (1 - sexFemNow) * log(1 - probFem)
           if (UpdJumps) updMat[iter, namesMat[pp]] <- 1
         }
       }
     }
     
-    # 2. Dynamic Metropolis to update jumps:
-    if (UpdJumps) {
-      if (is.element(iter/iterUpd,c(1:50))) {
-        updRate <- apply(updMat[iter - ((iterUpd - 1):0), ], 2, sum) / iterUpd
-        updRate[updRate == 0] <- 1e-2
-        jumpMat <- jumpMat * matrix(updRate, ncovs, defPars$le, byrow = TRUE) / 
-          updTarg
-        jumpLargeMat <- rbind(jumpLargeMat, c(t(jumpMat)))
+    # 2. Dispersal parameters:
+    for (pp in 1:2) {
+      lambdaNew <- lambdaNow
+      lambdaNew[pp] <- rtnorm(1, lambdaNow[pp], lambdaJump[pp], 
+                              lower = c(-Inf, 0)[pp])
+      likeDispAgeNew <- CalcLikeDispAge(lambdaNew, ageToFirst, ageToLast, 
+                                        dispStateNow)
+      likeDispParNew <- CalcLikeDispPars(lambdaNew, ageToFirst, ageToLast, idIM, 
+                                         likeDispAgeNew)
+      priorLamNew <- CalcLambdaPrior(lambdaNew, priorLamMean, priorLamSd)
+      dispPostParNew <- sum(likeDispParNew) + priorLamNew
+      r <- exp(dispPostParNew - dispPostParNow)
+      if (!is.na(r)) {
+        if (r > runif(1)) {
+          lambdaNow <- lambdaNew
+          likeDispParNow <- likeDispParNew
+          priorLambNow <- priorLamNew
+          dispPostParNow <- dispPostParNew
+          likeDispAgeNow <- CalcLikeDispAge(lambdaNow, ageToFirst, ageToLast, 
+                                            dispStateNow)
+          dispPostAgeNow <- likeDispAgeNow + dispStateNow * 
+            log(dispStatePrior) + (1 - dispStateNow) * log(1 - dispStatePrior)
+          
+        }
       }
     }
     
@@ -300,12 +329,13 @@ RunMCMC <- function(sim) {
     xNew <- xNow
     xNew[idNoDeath] <- rtnorm(length(idNoDeath), xNow[idNoDeath], 0.1, 
                               low = ageToLast[idNoDeath])
-    likeAgesNew <- CalcLikeAges(xNew, thetaMatNow, idM = idMnow, 
-                                idNM = idNMnow)
-    agePostNew <- likeAgesNew + CalcPriorAgeDist(xNew, thetaMatNow, exPrior) # inf in likeAgesNew
+    logPdfNew <- CalcPdf(thetaMatNow, xNew)
+    likeAgesNew <- CalcLikeAges(xNew, thetaMatNow, logPdfNew, dispStateNow)
     
-    likeMortNew <- CalcLikeMort(xNew, thetaMatNow)
-    sexPostNew <- likeAgesNew + (sexFemNow) * log(probFem) +
+    agePostNew <- likeAgesNew + CalcPriorAgeDist(xNew, thetaMatNow, exPrior) 
+    
+    likeMortNew <- CalcLikeMort(xNew, thetaMatNow, logPdfNew)
+    sexPostNew <- logPdfNew + (sexFemNow) * log(probFem) +
       (1 - sexFemNow) * log(1 - probFem)
     
     r <- exp(agePostNew - agePostNow)[idNoDeath] # infinities in agePostNew & Now
@@ -313,6 +343,7 @@ RunMCMC <- function(sim) {
     idUpd <- idNoDeath[r > z]
     idUpd <-idUpd[!(is.na(idUpd))] 
     if (length(idUpd) > 0) {
+      logPdfNow[idUpd] <- logPdfNew[idUpd]
       likeMortNow[idUpd] <- likeMortNew[idUpd]
       likeAgesNow[idUpd] <- likeAgesNew[idUpd]
       agePostNow[idUpd] <- agePostNew[idUpd]
@@ -330,24 +361,23 @@ RunMCMC <- function(sim) {
     sexFemNew[idNoSex] <- rbinom(length(idNoSex), 1, 0.5)
     covarsNew <- cbind(sexFemNew, 1 - sexFemNew)
     colnames(covarsNew) <- names
-    idMnew <- which(sexFemNew == 0 & unknownFate == 1 &
-                      ageToLast >= minDispAge & ageToLast <= maxDispAge)  
-    idNMnew <- (1:n)[!(1:n %in% idMnew)] 
+    dispStateNew <- dispStateNow
+    dispStateNew[sexFemNew == 1] <- 0
     thetaMatNew <- CalcCovTheta(thetaNow, covarsNew)
-    likeMortNew <- CalcLikeMort(xNow, thetaMatNew)
-    likeAgesNew <- CalcLikeAges(xNow, thetaMatNew, idM = idMnew, 
-                                idNM = idNMnew)
-    agePostNew <- likeAgesNew + CalcPriorAgeDist(xNow, thetaMatNew, exPrior)
-    
-    sexPostNew <- likeAgesNew + (sexFemNew) * log(probFem) +
+    logPdfNew <- CalcPdf(thetaMatNew, xNow)   
+    likeAgesNew <- CalcLikeAges(xNew, thetaMatNew, logPdfNew, dispStateNew)    
+    agePostNew <- likeAgesNew + CalcPriorAgeDist(xNow, thetaMatNew, exPrior) 
+    likeMortNew <- CalcLikeMort(xNow, thetaMatNew, logPdfNew)
+    sexPostNew <- logPdfNew + (sexFemNew) * log(probFem) +
       (1 - sexFemNew) * log(1 - probFem)
-    
+
     r <- exp(sexPostNew - sexPostNow)[idNoSex]
     z <- runif(length(idNoSex))
     
     idUpd2 <- idNoSex[r > z]
-    idUpd2 <-idUpd2[!(is.na(idUpd2))]  # removes the NA's from idUpd (from when pdf is 0, and log like -inf)
+    idUpd2 <-idUpd2[!(is.na(idUpd2))]
     if (length(idUpd2) > 0) {
+      logPdfNow[idUpd2] <- logPdfNew[idUpd2]
       likeMortNow[idUpd2] <- likeMortNew[idUpd2]
       likeAgesNow[idUpd2] <- likeAgesNew[idUpd2]
       agePostNow[idUpd2] <- agePostNew[idUpd2]
@@ -355,17 +385,61 @@ RunMCMC <- function(sim) {
       thetaMatNow[idUpd2, ] <- thetaMatNew[idUpd2, ]
       sexFemNow[idUpd2] <- sexFemNew[idUpd2]
       sexPostNow[idUpd2] <- sexPostNew[idUpd2]
+      dispStateNow[idUpd2] <- dispStateNew[idUpd2]
     }
-    
-    idMnow <- which(sexFemNow == 0 & unknownFate == 1 &
-                      ageToLast >= minDispAge & ageToLast <= maxDispAge)  
-    idNMnow <- (1:n)[!(1:n %in% idMnow)]
     
     parPostNow <- sum(likeMortNow) + 
       sum(dtnorm(c(thetaNow), rep(defPars$priorMean, each = ncovs),
                  rep(defPars$priorSd, each = ncovs), 
                  low = rep(defPars$low, each = ncovs), log = TRUE))
+    idEMnow <- which(sexFemNow == 0 & unknownFate == 1 & ageToLast >= minDispAge) 
+    idSTnow <- (1:n)[!((1:n) %in% idEMnow)]  # not emigrator
+    likeDispAgeNow <- CalcLikeDispAge(lambdaNow, ageToFirst, ageToLast, 
+                                      dispStateNow)
+    dispPostAgeNow <- likeDispAgeNow + dispStateNow * 
+      log(dispStatePrior) + (1 - dispStateNow) * log(1 - dispStatePrior)
+    likeDispParNow <- CalcLikeDispPars(lambdaNow, ageToFirst, ageToLast, idIM, 
+                                       likeDispAgeNow)
+    dispPostParNow <- sum(likeDispParNow) + priorLamNow
     
+    # 5. Dispersal state:
+    dispStateNew <- dispStateNow
+    dispStateNew[idEMnow] <- rbinom(length(idEMnow), 1, 0.5)    
+    likeDispAgeNew <- CalcLikeDispAge(lambdaNow, ageToFirst, ageToLast, 
+                                      dispStateNew)
+    likeDispParNew <- CalcLikeDispPars(lambdaNew, ageToFirst, ageToLast, idIM, 
+                                       likeDispAgeNew)
+    dispPostAgeNew <- likeDispAgeNew + dispStateNew * 
+      log(dispStatePrior) + (1 - dispStateNew) * log(1 - dispStatePrior)
+    
+    r <- exp(dispPostAgeNew - dispPostAgeNow)[idEMnow]
+    z <- runif(length(idEMnow))
+    
+    idUpd2 <- idEMnow[r > z]
+    idUpd2 <-idUpd2[!(is.na(idUpd2))]     
+
+    if (length(idUpd2) > 0) {
+      dispStateNeow[idUpd2] <- dispStateNew[idUpd2]
+      likeDispAgeNeow[idUpd2] <- likeDispAgeNew[idUpd2]
+      likeDispParNow[idUpd2] <- likeDispParNew[idUpd2]
+      dispPostAgeNow[idUpd2] <- dispPostAgeNew[idUpd2]
+    }
+    likeAgesNow <- CalcLikeAges(xNow, thetaMatNow, logPdfNow, dispStateNow)
+    agePostNow <- likeAgesNow + CalcPriorAgeDist(xNow, thetaMatNow, exPrior)
+    
+    # 2. Dynamic Metropolis to update jumps:
+    if (UpdJumps) {
+      if (is.element(iter/iterUpd,c(1:50))) {
+        updRate <- apply(updMat[iter - ((iterUpd - 1):0), ], 2, sum) / iterUpd
+        updRate[updRate == 0] <- 1e-2
+        jumpMat <- jumpMat * matrix(updRate, ncovs, defPars$le, byrow = TRUE) / 
+          updTarg
+        jumpLargeMat <- rbind(jumpLargeMat, c(t(jumpMat)))
+      }
+    }
+    
+    
+
     # 5. store results:
     parMat[iter, ] <- c(t(thetaNow))
     parPostVec[iter] <- parPostNow

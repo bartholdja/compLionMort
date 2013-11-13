@@ -11,10 +11,8 @@ if ("fernando" %in% list.files("/Users/")) {
   seren <- read.csv("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/data/serengeti/seren.csv", header = TRUE)
 }
 
-#test2 <- ageToFirst[which(seren$nomFirstSeenMoth == 1)]
-#test1 <- ageToLast[which(seren$nomFirstSeenMoth == 1)]
-#test1 - test2
-# seren <- seren[seren$nomFirstSeenMoth != 1, ]
+seren <- seren[is.na(seren$nomFirstSeenMoth), ]
+seren <- seren[-4426, ]
 
 # Source functions:
 source("code/functions.R")
@@ -69,13 +67,7 @@ ageToFirst[!is.na(first)] <- ageTrunc[!is.na(first)]
 # indicate and indices for immigrants, potential emigrants, and not-emigrants
 idIM <- which(sex == "m" & !is.na(first) & ageToFirst >= minDispAge)
 idEM <- which(sex == "m" & unknownFate == 1 & ageToLast >= minDispAge)
-idNEM <- (1:n)[!(1:n) %in% idIEM]  # not emigrator
-
-# Add dispersing state:
-dispStart <- rep(0, n)
-dispStart[idEM] <- 1
-resid <- dispStart * 0 + 1
-resid[seren$immigration == 2] <- 0
+idST <- (1:n)[!((1:n) %in% idEM)]  # not emigrator
 
 # index for unknown sex
 idNoSex <- which(sex == "u" | sex == "x")
@@ -83,12 +75,12 @@ idNoSex <- which(sex == "u" | sex == "x")
 probFem <- 0.45
 
 
-
 # Non-resighting probability conditioned on being alive and in the study area:
 # for everyone other than male lions aged between minimum and maximum dispersal age
-lamNonMigr <- -log(0.00005) / 2
+detectPar <- -log(0.00005) / 2
 
 # Propose initial parameter values:
+# Mortality:
 model <- "go"; shape <- "bt"
 ncovs <- 2
 defPars <- SetDefaultTheta()
@@ -100,6 +92,12 @@ thetaStart <- matrix(defPars$start, nrow = ncovs, ncol = defPars$length,
                      byrow = TRUE, dimnames = list(names, 
                                                    defPars$name))
 class(thetaStart) <- c(model, shape)
+
+# Dispersal:
+lambdaStart <- c(log(2), 1)
+
+priorLamMean <- c(log(3), 2)
+priorLamSd <- c(1, 1)
 
 # Output storage objects:
 niter <- 10000
@@ -116,16 +114,12 @@ sexFemStart[sex == "m"] <- 0
 sexFemStart[idNoSex] <- rbinom(length(idNoSex), 1, probFem)
 covarsStart  <- matrix(c(sexFemStart, 1 - sexFemStart), n, ncovs, dimnames = list(NULL, names))
 
-# Initial non-/migrators based on initial sexes:
-idMstart <- which(sexFemStart == 0 & unknownFate == 1 &
-                    ageToLast >= minDispAge & ageToLast <= maxDispAge)  
-idNMstart <- (1:n)[!(1:n) %in% idMstart]
-
 # Calculate priors:
 xv <- seq(0, 100, 0.1)
 thPrior <- matrix(defPars$priorMean, length(xv), defPars$length, byrow = TRUE)
 class(thPrior) <- c(model, shape)
 exPrior <- sum(CalcSurv(thPrior, xv) * 0.1)
+dispStatePrior <- 0.7
 
 # Build jumps matrix:
 jumpMatStart <- matrix(defPars$jump, ncovs, defPars$length, byrow = TRUE,
