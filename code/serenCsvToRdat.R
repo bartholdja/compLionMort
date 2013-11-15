@@ -129,9 +129,10 @@ seren <- seren[-(seq(1, 379, 2)), ]
 seren$sex[seren$sex == "m?"] <- "u"
 
 names(seren)
-
 seren$ageLS <- (seren$lsDate - seren$birthDate)/365.25
 head(seren$ageLS)
+seren <- seren[is.na(seren$nomFirstSeenMoth), ]
+seren <- seren[-which(seren$ageLS < 0), ]
 
 write.csv(seren, "data/Serengeti/seren.csv")
 rm(list = ls())

@@ -11,8 +11,6 @@ if ("fernando" %in% list.files("/Users/")) {
   seren <- read.csv("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/data/serengeti/seren.csv", header = TRUE)
 }
 
-seren <- seren[is.na(seren$nomFirstSeenMoth), ]
-seren <- seren[-4426, ]
 
 # Source functions:
 source("code/functions.R")
@@ -20,13 +18,12 @@ source("code/functions.R")
 # want diagnostic plots?:
 plotInd <- TRUE
 
-# Extract variables:
+### Extract variables:
+# number of observations
+n <- nrow(seren)
+# time objects (birth, first, last, death)
 study <- julian(as.Date(c("1966-04-01", "2013-08-01")), 
                 origin = as.POSIXct("1950-01-01"))
-
-n <- nrow(seren)
-
-# time objects (birth, first, last, death)
 birth <- julian(as.Date(seren[, "birthDate"]), 
                 origin = as.POSIXct("1950-01-01")) # for age at birth
 first <- julian(as.Date(seren[, "firstSeenDate"]), 
@@ -34,53 +31,35 @@ first <- julian(as.Date(seren[, "firstSeenDate"]),
 last <- julian(as.Date(seren[, "lsDate"]), # for age at emigration/death
                origin = as.POSIXct("1950-01-01"))
 death <- last
-death[seren$alive == 1 | is.na(seren$dead)] <- NA  # 347 ind. alive, 190 recoveries
-
-# minimum dispersal age
-# in Pusey & Packer 1987 all males dispersed by the age of 4.2, minimum age 1.8 (1 ind out of 12)
-# Elliot et al (submitted) all males dispersed by the age of 3.75, minimum age 1.66 (no male survived younger than 2.6)
+death[is.na(seren$dead)] <- NA
+# minimum dispersal age
+# in Pusey & Packer 1987 all m disp by age 4.2, min 1.8 (1 of 12)
+# Elliot et al (subm.) all m disp by 3.75, min 1.66 (no m survived younger than 2.6)
 minDispAge <- 1.5
-
-# indicator and index for open fate after last seen
-unknownFate <- rep(0, n)  # 0: observed death, 1: open fate
-unknownFate[is.na(death)] <- 1  # indicator needed for update of idM in MCMC
-# unknownFate[seren$ageLS < minDispAge] <- 0  #not necessary (will have idNM)
-idNoDeath <- which(unknownFate == 1)
-
 # sex
 sex <- as.character(seren[, 'sex'])
-
+# indicator and index for open fate after last seen ( 0: observed death | alive, 1: open fate)
+unknownFate <- rep(0, n)
+unknownFate[is.na(death)] <- 1
+unknownFate[seren$alive == 1] <- 0
+idNoDeath <- which(unknownFate == 1)
 # left truncation
 idLeftTr <- which(birth < study[1] | !is.na(seren$firstSeenDate))
 ageTrunc <- apply(cbind(study[1] - birth, 0), 1, max) / 365.25  # born before study start
 ageTrunc[!is.na(first)] <-
   c(first - birth)[!is.na(first)] / 365.25  # immigrants
-
 # age at last seen
 ageToLast <- (last - birth) / 365.25
-
-
-# age at first seen (0 for natives, ageTrunc for immigrants)
+# age at first seen (0 for natives, ageTrunc for immigrants)
 ageToFirst <- rep(0, n)
 ageToFirst[!is.na(first)] <- ageTrunc[!is.na(first)] 
-
-# indicate and indices for immigrants, potential emigrants, and not-emigrants
-idIM <- which(sex == "m" & !is.na(first) & ageToFirst >= minDispAge)
-idEM <- which(sex == "m" & unknownFate == 1 & ageToLast >= minDispAge)
-idST <- (1:n)[!((1:n) %in% idEM)]  # not emigrator
-
 # index for unknown sex
 idNoSex <- which(sex == "u" | sex == "x")
-# proportion of females among newborns
+# probability newborns female
 probFem <- 0.45
 
-
-# Non-resighting probability conditioned on being alive and in the study area:
-# for everyone other than male lions aged between minimum and maximum dispersal age
-detectPar <- -log(0.00005) / 2
-
-# Propose initial parameter values:
-# Mortality:
+### Propose (initial) parameter values:
+# Mortality
 model <- "go"; shape <- "bt"
 ncovs <- 2
 defPars <- SetDefaultTheta()
@@ -92,40 +71,47 @@ thetaStart <- matrix(defPars$start, nrow = ncovs, ncol = defPars$length,
                      byrow = TRUE, dimnames = list(names, 
                                                    defPars$name))
 class(thetaStart) <- c(model, shape)
-
-# Dispersal:
+# Dispersal pars and state indices
 lambdaStart <- c(log(2), 1)
-
-priorLamMean <- c(log(3), 2)
-priorLamSd <- c(1, 1)
-
-# Output storage objects:
-niter <- 10000
-niterRun <- 5
-
-# Propose initial ages:
+lambdaJump <- c(0.2, 0.2)
+nDispPars <- length(lambdaStart)
+idIMstart <- which(sex == "m" & !is.na(first) & ageToFirst >= minDispAge)
+idEMstart <- which(sex == "m" & unknownFate == 1 & ageToLast >= minDispAge)
+idSTstart <- (1:n)[!((1:n) %in% idEMstart)]  # not emigrator
+# Ages
 xStart <- c(last - birth) / 365.25
 xStart[idNoDeath] <- xStart[idNoDeath] + sample(1:10, length(idNoDeath), 
                                                 replace = TRUE)
-
-# Propose intial sexes:
+# non-dectection probability (if alive and in study area)
+detectPar <- -log(0.00005) / 2
+# Initial sexes
 sexFemStart <- rep(1, n)
 sexFemStart[sex == "m"] <- 0
 sexFemStart[idNoSex] <- rbinom(length(idNoSex), 1, probFem)
 covarsStart  <- matrix(c(sexFemStart, 1 - sexFemStart), n, ncovs, dimnames = list(NULL, names))
+# Dispersal state indicator
+dispStateStart <- rep(0, n)
+dispStateStart[idEMstart] <- 1
 
-# Calculate priors:
+### For calculating priors:
 xv <- seq(0, 100, 0.1)
 thPrior <- matrix(defPars$priorMean, length(xv), defPars$length, byrow = TRUE)
 class(thPrior) <- c(model, shape)
+priorLamMean <- c(log(3), 2)
+priorLamSd <- c(1, 1)
 exPrior <- sum(CalcSurv(thPrior, xv) * 0.1)
 dispStatePrior <- 0.7
 
-# Build jumps matrix:
+### Build jumps matrix:
 jumpMatStart <- matrix(defPars$jump, ncovs, defPars$length, byrow = TRUE,
                        dimnames = dimnames(thetaStart))
 
-# Run dynamic Metropolis to find jumps
+### Number of iterations and runs
+niter <- 10000
+niterRun <- 5
+
+### Run dynamic Metropolis to find jumps
+source("code/functions.R")
 UpdJumps <- TRUE
 niter <- 5000
 outJump <- RunMCMC(1)
@@ -134,15 +120,15 @@ outJump <- RunMCMC(1)
 UpdJumps <- FALSE
 jumpMatStart <- outJump$jumps
 niter <- 10000
-nsim <- 2
-ncpus <- 2
+nsim <- 4
+ncpus <- 4
 require(snowfall)
 sfInit(parallel = TRUE, cpus = ncpus)
 sfExport(list = c(ls(), ".Random.seed"))
 sfLibrary(msm, warn.conflicts = FALSE)
 out <- sfClusterApplyLB(1:nsim, RunMCMC)
 sfStop()
-
+  
 # plot the mean survival curves
 
 if(plotInd){
