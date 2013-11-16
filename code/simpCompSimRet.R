@@ -6,7 +6,7 @@ if ("fernando" %in% list.files("/Users/")) {
 } else {
   setwd("/Users/Viktualia/Documents/GitHub/compLionMort")
   load("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/data/hwange/simDatHwang.rdata")
-  load("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/results/simOutTestPDF.Rdata")
+  load("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/results/outputSeren1.Rdata")
 }
 
 source("code/functions.R")
@@ -62,8 +62,9 @@ if(plotInd){
 } 
 dev.off()  
 
+
 if(plotInd){
-  plot(xv, yMortFem, col = 2, type = "l", lwd = 2, ylab = "Survival probability", xlab = "Age (yrs)")
+  plot(xv, yMortFem, col = 2, type = "l", lwd = 2, ylab = "Mortality rate", xlab = "Age (yrs)")
   lines(xv, yMortMal, col = 4, lwd = 2)
   
   lines(xv, yMortFemNew, col = 2, lwd = 2, lty = 2)

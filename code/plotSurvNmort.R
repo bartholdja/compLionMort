@@ -4,12 +4,10 @@ library(RColorBrewer)
 
 if ("fernando" %in% list.files("/Users/")) {
   setwd("/Users/fernando/FERNANDO/PROJECTS/1.ACTIVE/JuliaLionsGithub/compLionMort/")
-  load("/Users/fernando/FERNANDO/PROJECTS/1.ACTIVE/JuliaLions/results/simOut3.Rdata")
-  load("/Users/fernando/FERNANDO/PROJECTS/1.ACTIVE/JuliaLions/data/hwange/simDatHwang.rdata")
-} else {
+  load("/Users/fernando/FERNANDO/PROJECTS/1.ACTIVE/JuliaLions/results/outputSeren1.Rdata")
+  }else {
   setwd("/Users/Viktualia/Documents/GitHub/compLionMort")
-  load("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/data/hwange/hwangeMortAnal.03Sep.rdata")
-  load("/Users/Viktualia/Desktop/outputHwang.Rdata")
+  load("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/results/outputSeren1.Rdata")
 }
 
 # Source functions:
@@ -17,7 +15,7 @@ source("code/functions.R")
 
 
 # Calculate mean and quantiles for parameter estimates:
-#nsim <- 4
+#nsim <- 5
 #model <- "go"  
 #niter <- 10000
 #shape <- "bt"
@@ -61,7 +59,7 @@ rangesSurv <- sapply(names, function(nn) which(survList[[nn]][, 1] < 0.01)[1])
 
 rangesMort <- sapply(names, function(nn) range(mortList[[nn]][1:rangesSurv[nn], ]))
 
-pdf("/Users/Viktualia/Desktop/hwangI.pdf", height = 10)
+pdf("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/plots/seren1.pdf", height = 10)
 par(mfrow = c(2, 1), mar = c(4, 5, 1, 1), family = 'serif')
 plot(range(xv[1:max(rangesSurv)]), c(0, 1), col = NA, frame.plot = FALSE, 
      xlab = "", ylab = expression(paste("Survival, ", italic(S(x)))))
@@ -74,7 +72,7 @@ for (i in 1:2) {
   lines(xv[1:rangesSurv[i]], survList[[i]][1:rangesSurv[i], 1], col = 'white',
         lwd = 2)
 }
-legend('topright', names, pch = 15, cex = 2, col = c('dark red', 'dark green'),
+legend("topright", names, pch = 15, cex = 2, col = c('dark red', 'dark green'),
        bty = 'n')
 
 plot(range(xv[1:max(rangesSurv)]), c(0, max(rangesMort)), col = NA, 
