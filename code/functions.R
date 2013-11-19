@@ -287,12 +287,14 @@ RunMCMC <- function(sim) {
   parPostVec <- rep(0, niter)
   # Dispersal pars
   parDispMat <- matrix(0, niter, nDispPars, dimnames = list(NULL, c("Mean", "S")))
+  parDispPostVec <- rep(0, niter)
   # Ages
   agePostMat <- matrix(0, niter, n)
   # Sexes
   sexMat <- matrix(NA, niter, length(idNoSex))
   # Dispersal state
   dispStateMat <- matrix(0, niter, n)
+  dispStatePostMat <- matrix(0, niter, n)
   
   # Objects for Dynamic Metropolis:
   jumpMat <- jumpMatStart
@@ -305,7 +307,6 @@ RunMCMC <- function(sim) {
   
   # Individual runs:
   for (iter in 1:niter) {
-    print(iter)
     # 1. Propose mortality parameters:
     for (pp in 1:npars) {
       
@@ -488,10 +489,12 @@ RunMCMC <- function(sim) {
     # 5. store results:
     parMat[iter, ] <- c(t(thetaNow))
     parPostVec[iter] <- parPostNow
+    parDispMat[iter, ] <- lambdaNow
+    parDispPostVec[iter] <- dispPostParNow
     agePostMat[iter, ] <- agePostNow
     sexMat[iter, ] <- sexFemNow[idNoSex]
-    parDispMat[iter, ] <- lambdaNow
     dispStateMat[iter, ] <- dispStateNow
+    dispStatePostMat[iter, ] <- dispPostAgeNow
     
   }
   if (UpdJumps) {
@@ -500,6 +503,8 @@ RunMCMC <- function(sim) {
   } else {
     aveJumps <- jumpMat
   }
-  return(list(pars = parMat, parPost = parPostVec, agePost = agePostMat,
-              sexEst = sexMat, jumps = aveJumps))
+  return(list(pars = parMat, parPost = parPostVec, dispPars = parDispMat,
+              dispParsPost = parDispPostVec, agePost = agePostMat,
+              sexEst = sexMat, dispState = dispStateMat, 
+              dispStatePost = dispStatePostMat, jumps = aveJumps))
 }
