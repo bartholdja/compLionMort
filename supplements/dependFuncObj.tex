@@ -1,0 +1,24 @@
+
+idEMnow(sex)
+idIMnow(sex)
+idStnow(idEMnow)
+covarsNew(sexFemNew)
+dispStateNew(sexFemNew)
+thetaMatNow(thetaNow)
+
+logPdfNow (xNow, thetaMatNow)
+likeMortNow(xNow, thetaMatNow, logPdfNow)
+likeDispAgesNow(lambdaNow, dispStateNow)
+likeDispParNow(lambdaNow, idIM, likeDispAgeNow)
+likeAgeNow(xNow, thetaMatNow, lodPdfNow, dispStateNow)
+
+priorLamNow(lambdaNow)
+priorAgeNow(xNow, thetaMatNow)
+priorSexNow(sexFemNow)
+priorDispAgeNow(dispStateNow)
+
+parPostNow(likeMortNow, thetaNow)
+dispPostParNow(likeDispParNow, priorLamNow)
+dispPostAgeNow(likeDispAgeNow, priorDispAgeNow)
+agePostNow(likeAgeNow, priorAgeNow)
+sexPostNow(logPdfNow, priorSexNow)
