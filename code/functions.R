@@ -141,7 +141,6 @@ CalcSurv.bt <- function(th, x) {
 
 # Ages at death density:
 CalcPdf <- function(th, x) CalcMort(th, x) * CalcSurv(th, x)
-CalcLogPdf <- function(th, x) log(CalcMort(th, x) * CalcSurv(th, x))
 
 # Ages at death cdf:
 CalcCdf <- function(th, x) {
@@ -181,6 +180,7 @@ CalcPriorDispAge <- function (dispState) {
 
 ### Likelihoods:
 # Mortality
+CalcLogPdf <- function(th, x) log(CalcMort(th, x) * CalcSurv(th, x))
 CalcLikeMort <- function(x, th, logPdf) {
   logPdf - log(CalcSurv(th, ageTrunc))#  denominator becomes 1 for non-truncated individuals
 }
@@ -323,7 +323,8 @@ RunMCMC <- function(sim) {
       
       logPdfNew <- CalcLogPdf(thetaMatNew, xNow)
       likeMortNew <- CalcLikeMort(xNow, thetaMatNew, logPdfNew)
-      parPostNew <- sum(likeMortNew) + CalcPriorMortPar(thetaNew)
+      priorMortNew <- CalcPriorMortPar(thetaNew)
+      parPostNew <- sum(likeMortNew) + priorMortNow
       
       r <- exp(parPostNew - parPostNow)
       if (!is.na(r)) {
@@ -333,6 +334,7 @@ RunMCMC <- function(sim) {
           thetaMatNow <- thetaMatNew
           logPdfNow <- logPdfNew
           likeMortNow <- likeMortNew
+          priorMortNow <- priorMortNew
           parPostNow <- parPostNew
           likeAgeNow <- CalcLikeAges(xNow, thetaMatNow, logPdfNow, dispStateNow)
           priorAgeNow <- CalcPriorAgeDist(xNow, thetaMatNow)
@@ -371,14 +373,13 @@ RunMCMC <- function(sim) {
     xNew[idNoDeath] <- rtnorm(length(idNoDeath), xNow[idNoDeath], 0.1, 
                               low = ageToLast[idNoDeath])
     logPdfNew <- CalcLogPdf(thetaMatNow, xNew)
-    likeAgesNew <- CalcLikeAges(xNew, thetaMatNow, logPdfNew, dispStateNow)
+    likeAgeNew <- CalcLikeAges(xNew, thetaMatNow, logPdfNew, dispStateNow)
     likeMortNew <- CalcLikeMort(xNew, thetaMatNow, logPdfNew)
     
     priorAgeNew <- CalcPriorAgeDist(xNew, thetaMatNow) 
-    priorSexNew <- CalcPriorSex(sexFemNow)
     
-    agePostNew <- likeAgesNew + priorAgeNew
-    sexPostNew <- logPdfNew + priorSexNew
+    agePostNew <- likeAgeNew + priorAgeNew
+    sexPostNew <- logPdfNew + priorSexNow
     
     r <- exp(agePostNew - agePostNow)[idNoDeath]
     z <- runif(length(idNoDeath))
@@ -388,13 +389,12 @@ RunMCMC <- function(sim) {
       xNow[idUpd] <- xNew[idUpd]
       logPdfNow[idUpd] <- logPdfNew[idUpd]
       likeMortNow[idUpd] <- likeMortNew[idUpd]
-      likeAgeNow[idUpd] <- likeAgesNew[idUpd]
+      likeAgeNow[idUpd] <- likeAgeNew[idUpd]
       priorAgeNow[idUpd] <- priorAgeNew[idUpd]
-      priorSexNow[idUpd] <- priorSexNew[idUpd]
       agePostNow[idUpd] <- agePostNew[idUpd]
       sexPostNow[idUpd] <- sexPostNew[idUpd]
     }
-    parPostNow <- sum(likeMortNow) + CalcPriorMortPar(thetaNow)
+    parPostNow <- sum(likeMortNow) + priorMortNow
     
     # 4. Update unknown sexes:
     sexFemNew <- sexFemNow
@@ -404,31 +404,38 @@ RunMCMC <- function(sim) {
     thetaMatNew <- CalcCovTheta(thetaNow, covarsNew)
     idEMnew <- which(sexFemNew == 0 & unknownFate == 1 & 
                        ageToLast >= minDispAge) 
-    dispStateNew <- dispStateNow  # in my opinion, these 2 lines leave the previously male individ as 1 in dispStateNew
-    dispStateNew[sexFemNew == 1] <- 0
+    dispStateNew <- dispStateNow  # in my opinion, these 2 lines leave individuals of unknown sex that were
+    dispStateNew[sexFemNew == 1] <- 0 # estimated as females with but now as males with a 0 for dispStateNew     
+       
     logPdfNew <- CalcLogPdf(thetaMatNew, xNow)   
-    likeAgesNew <- CalcLikeAges(xNow, thetaMatNew, logPdfNew, dispStateNew)    
-    priorAgeNew <- CalcPriorAgeDist(xNow, thetaMatNew)
-    agePostNew <- likeAgesNew + priorAgeNew 
-    likeMortNew <- CalcLikeMort(xNow, thetaMatNew, logPdfNew)
     priorSexNew <- CalcPriorSex(sexFemNew)
     sexPostNew <- logPdfNew + priorSexNew
     
-    r <- exp(sexPostNew - sexPostNow)[idNoSex]
+    likeMortNew <- CalcLikeMort(xNow, thetaMatNew, logPdfNew)
+    likeAgeNew <- CalcLikeAges(xNow, thetaMatNew, logPdfNew, dispStateNew)    
+    priorAgeNew <- CalcPriorAgeDist(xNow, thetaMatNew)
+    agePostNew <- likeAgeNew + priorAgeNew 
+
+    
+    
+    r <- exp(sexPostNew - sexPostNow)[idNoSex]  
     z <- runif(length(idNoSex))
     
     idUpd2 <- idNoSex[r > z]
     idUpd2 <-idUpd2[!(is.na(idUpd2))]
     if (length(idUpd2) > 0) {
-      logPdfNow[idUpd2] <- logPdfNew[idUpd2]
-      likeMortNow[idUpd2] <- likeMortNew[idUpd2]
-      likeAgeNow[idUpd2] <- likeAgesNew[idUpd2]
-      agePostNow[idUpd2] <- agePostNew[idUpd2]
+      sexFemNow[idUpd2] <- sexFemNew[idUpd2]
       covarsNow[idUpd2, ] <- covarsNew[idUpd2, ]
       thetaMatNow[idUpd2, ] <- thetaMatNew[idUpd2, ]
-      sexFemNow[idUpd2] <- sexFemNew[idUpd2]
+      dispStateNow[idUpd2] <- dispStateNew[idUpd2] 
+      logPdfNow[idUpd2] <- logPdfNew[idUpd2]
+      priorSexNow[idUpd2] <- priorSexNew[idUpd2]
       sexPostNow[idUpd2] <- sexPostNew[idUpd2]
-      dispStateNow[idUpd2] <- dispStateNew[idUpd2]
+      likeMortNow[idUpd2] <- likeMortNew[idUpd2]
+      likeAgeNow[idUpd2] <- likeAgeNew[idUpd2]
+      priorAgeNow[idUpd2] <- priorAgeNew[idUpd2]
+      agePostNow[idUpd2] <- agePostNew[idUpd2]
+
     }
     
     parPostNow <- sum(likeMortNow) + CalcPriorMortPar(thetaNow)
@@ -444,10 +451,12 @@ RunMCMC <- function(sim) {
     # 5. Update dispersal state:
     dispStateNew <- dispStateNow
     dispStateNew[idEMnow] <- rbinom(length(idEMnow), 1, 0.5)   
+    
     likeDispAgeNew <- CalcLikeDispAge(lambdaNow, dispStateNew)
-    likeDispParNew <- CalcLikeDispPars(lambdaNow, idIMnow, likeDispAgeNew)
     priorDispAgeNew <- CalcPriorDispAge(dispStateNew)
     dispPostAgeNew <- likeDispAgeNew + priorDispAgeNew
+    
+    likeDispParNew <- CalcLikeDispPars(lambdaNow, idIMnow, likeDispAgeNew)
     
     r <- exp(dispPostAgeNew - dispPostAgeNow)[idEMnow] # changed this to idEMnow, Julia 26 Nov
     z <- runif(length(idEMnow))  # same here
