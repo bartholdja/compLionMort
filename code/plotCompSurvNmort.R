@@ -5,7 +5,7 @@ if ("fernando" %in% list.files("/Users/")) {
   load("/Users/fernando/FERNANDO/PROJECTS/1.ACTIVE/JuliaLions/results/outputSeren1.Rdata")
 }else {
   setwd("/Users/Viktualia/Documents/GitHub/compLionMort")
-  load("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/results/simSerenOut2.Rdata")
+  load("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/results/simSerenOut3.Rdata")
 }
 
 
@@ -64,7 +64,7 @@ yMortFem <- CalcMort(thFem, xv)
 yMortMal <- CalcMort(thMal, xv)
 
 
-pdf("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/plots/simSeren1.pdf", height = 10)
+pdf("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/plots/simSeren4.pdf", height = 10)
 par(mfrow = c(2, 1), mar = c(4, 5, 1, 1), family = 'serif')
 plot(range(xv[1:max(rangesSurv)]), c(0, 1), col = NA, frame.plot = FALSE, 
      xlab = "", ylab = expression(paste("Survival, ", italic(S(x)))))

@@ -9,6 +9,7 @@ if ("fernando" %in% list.files("/Users/")) {
   setwd("/Users/Viktualia/Documents/GitHub/compLionMort")
   load("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/data/serengeti/simDatSeren.Rdata")
   #load("N:/Barthold/simDatSeren.Rdata")
+  #setwd("N:/Barthold)
 }
 
 
@@ -21,11 +22,10 @@ plotInd <- FALSE
 ### Extract variables:
 # number of observations
 n <- nrow(dat)
-# time objects (birth, first, last, death)
-first <- dat$fsAgeYrs
-last <- dat$ageLastSeen
-death <- last
-death[dat$noDeath == 1] <- NA 
+# Age to first and last
+ageToFirst <- dat$fsAgeYrs
+first <- ageToFirst
+ageToLast <- dat$ageLastSeen
 # minimum dispersal age
 # in Pusey & Packer 1987 all m disp by age 4.2, min 1.8 (1 of 12)
 # Elliot et al (subm.) all m disp by 3.75, min 1.66 (no m survived younger than 2.6)
@@ -35,14 +35,10 @@ sex <- as.character(dat$sexNew)
 # indicator and index for open fate after last seen ( 0: observed death | alive, 1: open fate)
 unknownFate <- dat$noDeath
 idNoDeath <- which(unknownFate == 1)
-# left truncation
-idLeftTr <- which(dat$fsAgeYrs != 0)
+# left truncation (only immigrants for simulated data)
+idLeftTr <- which(ageToFirst != 0)
 ageTrunc <- rep(0, n)
-ageTrunc[idLeftTr] <- dat$fsAgeYrs[idLeftTr]  # born before study start
-# age at last seen
-ageToLast <- last
-# age at first seen (0 for natives, ageTrunc for immigrants)
-ageToFirst <- first
+ageTrunc[idLeftTr] <- ageToFirst[idLeftTr]  # born before study start
 # index for unknown sex
 idNoSex <- which(sex == "u" )
 # probability newborns female
@@ -62,12 +58,12 @@ thetaStart <- matrix(defPars$start, nrow = ncovs, ncol = defPars$length,
                                                    defPars$name))
 class(thetaStart) <- c(model, shape)
 # Dispersal pars and state indices
-lambdaStart <- c(log(2), 1)
+lambdaStart <- c(log(2), 1) 
 lambdaJump <- c(0.2, 0.2)
 nDispPars <- length(lambdaStart)
 idIMstart <- which(sex == "m" & first != 0 & ageToFirst >= minDispAge)
 idEMstart <- which(sex == "m" & unknownFate == 1 & ageToLast >= minDispAge)
-idSTstart <- (1:n)[!((1:n) %in% idEMstart)]  # not emigrator
+#idSTstart <- (1:n)[!((1:n) %in% idEMstart)]  # not emigrator
 # Ages
 xStart <- ageToLast
 xStart[idNoDeath] <- xStart[idNoDeath] + sample(1:10, length(idNoDeath), 
@@ -96,17 +92,34 @@ dispStatePrior <- 0.7
 jumpMatStart <- matrix(defPars$jump, ncovs, defPars$length, byrow = TRUE,
                        dimnames = dimnames(thetaStart))
 
+### Number of iterations and runs
+niter <- 10000
+niterRun <- 5
+
 ### Run dynamic Metropolis to find jumps
-#UpdJumps <- FALSE
-#niter <- 5000
-#outJump <- RunMCMC(1)
+UpdJumps <- TRUE
+niter <- 10000
+burnin <- 5001
+thin <- 20
+keep <- seq(burnin, niter, thin)
+outJump <- RunMCMC(1)
+
+par(mfcol = c(5, 2), mar = c(3, 3, 1, 1)) 
+for (i in 1:10) plot(outJump$pars[, i], type = 'l', 
+                     main = colnames(outJump$pars)[i])
 
 # Run MCMC:
 UpdJumps <- FALSE
-jumpMatStart <- outJump$jumps
-niter <- 10000
-nsim <- 4
-ncpus <- 4
+jumpMatStart <- outJump$jumpsMort
+lambdaJump <- outJump$jumpsDisp
+rm("outJump")
+niter <- 40000
+burnin <- 20001
+thin <- 40
+keep <- seq(burnin, niter, thin)
+
+nsim <- 2
+ncpus <- 2
 require(snowfall)
 sfInit(parallel = TRUE, cpus = ncpus)
 sfExport(list = c(ls(), ".Random.seed"))
@@ -121,6 +134,6 @@ rm(list = setdiff(ls(), c("out", "nsim", "niter", "model", "shape", "ncovs",
 if ("fernando" %in% list.files("/Users/")) {
   save.image("/Users/fernando/FERNANDO/PROJECTS/1.ACTIVE/JuliaLions/results/outputHwang04Nov2.Rdata")
 } else {
-  save.image("N:/Barthold/simSerenOut2.Rdata")
-  #save.image("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/results/simSerenOut2.Rdata")
+  #save.image("N:/Barthold/simSerenOut3.Rdata")
+  save.image("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/results/simSerenOut4.Rdata")
 }

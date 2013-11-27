@@ -60,6 +60,7 @@ lamMigr <- out$minimum
 # for everyone other than male lions aged between minimum and maximum dispersal age
 lamNonMigr <- -log(0.00005) / 2
 
+
 # Propose initial parameter values:
 model <- "go"; shape <- "bt"
 ncovs <- 2

@@ -1,4 +1,9 @@
-setwd("/Users/fernando/FERNANDO/PROJECTS/1.ACTIVE/JuliaLionsGithub/compLionMort/")
+if ("fernando" %in% list.files("/Users/")) {
+  setwd("/Users/fernando/FERNANDO/PROJECTS/1.ACTIVE/JuliaLionsGithub/compLionMort/")
+} else {
+  setwd("/Users/Viktualia/Documents/GitHub/compLionMort")
+}
+
 source("code/functions.R")
 
 # My data simulation:

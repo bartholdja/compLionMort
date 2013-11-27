@@ -23,8 +23,6 @@ nMal <- 1000
 nFem <- round(s/(1-s) * nMal)
 
 n <- nMal + nFem
-cdfYfem <- runif(nFem)
-cdfYmal <- runif(nMal)
 model <- "go"
 shape <- "bt"
 ageInt<- seq(0, 30, 0.1)
@@ -60,6 +58,8 @@ if(plotInd) {
 }
 
 # ages at death
+cdfYfem <- runif(nFem)
+cdfYmal <- runif(nMal)
 cdfYintFem <- CalcCdf(thFem, ageInt)
 cdfYintMal <- CalcCdf(thMal, ageInt)
 intFem <- findInterval(cdfYfem, cdfYintFem)
@@ -122,7 +122,6 @@ cdfYfsIM <- runif(2 * nMal)
 intM <- findInterval(cdfYfsIM, exp(cdfYintM))
 xIM <- ageIntM[intM]
 
-
 # ages at death for immigrants
 cdfYimmig <- runif(2 * nMal)
 intImmig <- findInterval(cdfYimmig, cdfYintMal)
@@ -152,8 +151,6 @@ idST <- dat$id[!(dat$id %in% idEM)]
 dat$noDeath <- rep(1, nrow(dat))  # 0 means  observed death, 1 no observed death
 dat$noDeath[idST][rbinom(length(dat$noDeath[idST]), 1, 0.1) == 1] <- 0
 
-dat$dispState <- rep(1, nrow(dat)) # indicator for dispersal state, 0:EM,
-dat$dispState[idEM] <- 0
 thetaFemOr <- thFem
 thetaMalOr <- thMal
 
