@@ -93,7 +93,6 @@ jumpMatStart <- matrix(defPars$jump, ncovs, defPars$length, byrow = TRUE,
                        dimnames = dimnames(thetaStart))
 
 ### Number of iterations and runs
-niter <- 10000
 niterRun <- 5
 
 ### Run dynamic Metropolis to find jumps

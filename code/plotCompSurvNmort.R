@@ -5,12 +5,12 @@ if ("fernando" %in% list.files("/Users/")) {
   load("/Users/fernando/FERNANDO/PROJECTS/1.ACTIVE/JuliaLions/results/outputSeren1.Rdata")
 }else {
   setwd("/Users/Viktualia/Documents/GitHub/compLionMort")
-  load("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/results/simSerenOut11.Rdata")
+  load("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/results/simSerenOut12.Rdata")
 }
 
 
 # Source functions:
-source("code/functionsNew.R")
+source("code/functions.R")
 
 
 # Calculate mean and quantiles for parameter estimates:
