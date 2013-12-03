@@ -5,11 +5,11 @@ if ("fernando" %in% list.files("/Users/")) {
   load("/Users/fernando/FERNANDO/PROJECTS/1.ACTIVE/JuliaLions/results/simOut3.Rdata")
 } else {
   setwd("/Users/Viktualia/Documents/GitHub/compLionMort")
-  load("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/data/hwange/simDatHwang.rdata")
-  load("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/results/outputSeren1.Rdata")
+  load("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/results/simSerenOut10.Rdata")
+  load("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/data/serengeti/simDatSeren.Rdata")
 }
 
-source("code/functions.R")
+source("code/functionsNew.R")
 
 plotInd <- TRUE
 nsim <- 4

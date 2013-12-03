@@ -174,8 +174,14 @@ CalcLambdaPrior <- function(lambda) {
     1 / dgamma(lambda[2]^2, priorLamSd[1], priorLamSd[2], log = TRUE)
 }
 # Dipersal state
-CalcPriorDispAge <- function (dispState) {
-  dispState * log(dispStatePrior) + (1 - dispState) * log(1 - dispStatePrior)
+#CalcPriorDispAge <- function (dispState) {
+#  dispState * log(dispStatePrior) + (1 - dispState) * log(1 - dispStatePrior)
+#}
+# Dipersal state
+CalcPriorDispAge <- function (dispState, sexFemNow) {
+  prior <- dispState * log(dispStatePrior) + (1 - dispState) * log(1 - dispStatePrior)
+  prior[sexFemNow == 1] <- 0
+  return(prior)
 }
 
 ### Likelihoods:
@@ -194,6 +200,7 @@ CalcLikeMort <- function(x, th, logPdf) {
 CalcLikeDispAge <- function(lambda, dispState) {
   like <-  dlnorm(ageToLast - minDispAge, lambda[1], lambda[2], log = FALSE)
   like[dispState  == 1] <- log(like[dispState  == 1])
+  like[dispState == 0] <- 0
   return(like)
 }
 # Dispersal parameters (dispersal age pdf for emigrants + dispersal age cdf for immigrants)
@@ -223,6 +230,7 @@ CalcCovTheta <- function(th, covars = NA) {
 
 # MCMC:
 RunMCMC <- function(sim) {
+  startTime <- Sys.time()
   ### Now objects:
   # Mortality pars
   covarsNow <- covarsStart
@@ -262,8 +270,6 @@ RunMCMC <- function(sim) {
   likeAgeNow <- CalcLikeAges(xNow, thetaMatNow, logPdfNow, dispStateNow)
   
   ### Priors:
-  # Mortality
-  priorMortNow <- CalcPriorMortPar(thetaNow)
   # Dispersal pars
   priorLamNow <- CalcLambdaPrior(lambdaNow)
   # Ages
@@ -271,11 +277,12 @@ RunMCMC <- function(sim) {
   # Sexes
   priorSexNow <- CalcPriorSex(sexFemNow)
   # Prior disp state
-  priorDispAgeNow <- CalcPriorDispAge(dispStateNow)
+  #priorDispAgeNow <- CalcPriorDispAge(dispStateNow)
+  priorDispAgeNow <- CalcPriorDispAge(dispStateNow, sexFemNow)
   
   ### Posteriors:
   # Mortality
-  parPostNow <- sum(likeMortNow) + priorMortNow
+  parPostNow <- sum(likeMortNow) + CalcPriorMortPar(thetaNow)
   # Dispersal pars
   dispPostParNow <- sum(likeDispParNow[idEMnow]) + priorLamNow
   # Ages
@@ -323,8 +330,7 @@ RunMCMC <- function(sim) {
       
       logPdfNew <- CalcLogPdf(thetaMatNew, xNow)
       likeMortNew <- CalcLikeMort(xNow, thetaMatNew, logPdfNew)
-      priorMortNew <- CalcPriorMortPar(thetaNew)
-      parPostNew <- sum(likeMortNew) + priorMortNow
+      parPostNew <- sum(likeMortNew) + CalcPriorMortPar(thetaNew)
       
       r <- exp(parPostNew - parPostNow)
       if (!is.na(r)) {
@@ -334,7 +340,6 @@ RunMCMC <- function(sim) {
           thetaMatNow <- thetaMatNew
           logPdfNow <- logPdfNew
           likeMortNow <- likeMortNew
-          priorMortNow <- priorMortNew
           parPostNow <- parPostNew
           likeAgeNow <- CalcLikeAges(xNow, thetaMatNow, logPdfNow, dispStateNow)
           priorAgeNow <- CalcPriorAgeDist(xNow, thetaMatNow)
@@ -394,7 +399,7 @@ RunMCMC <- function(sim) {
       agePostNow[idUpd] <- agePostNew[idUpd]
       sexPostNow[idUpd] <- sexPostNew[idUpd]
     }
-    parPostNow <- sum(likeMortNow) + priorMortNow
+    parPostNow <- sum(likeMortNow) + CalcPriorMortPar(thetaNow)
     
     # 4. Update unknown sexes:
     sexFemNew <- sexFemNow
@@ -443,7 +448,8 @@ RunMCMC <- function(sim) {
                        ageToLast >= minDispAge)
     idIMnow <-which(sexFemNow == 0 & !is.na(first) & ageToFirst >= minDispAge)
     likeDispAgeNow <- CalcLikeDispAge(lambdaNow, dispStateNow)
-    priorDispAgeNow <- CalcPriorDispAge(dispStateNow)
+    #priorDispAgeNow <- CalcPriorDispAge(dispStateNow)
+    priorDispAgeNow <- CalcPriorDispAge(dispStateNow, sexFemNow)
     dispPostAgeNow <- likeDispAgeNow + priorDispAgeNow
     likeDispParNow <- CalcLikeDispPars(lambdaNow, idIMnow, likeDispAgeNow)
     dispPostParNow <- sum(likeDispParNow[idEMnow]) + priorLamNow
@@ -453,7 +459,8 @@ RunMCMC <- function(sim) {
     dispStateNew[idEMnow] <- rbinom(length(idEMnow), 1, 0.5)   
     
     likeDispAgeNew <- CalcLikeDispAge(lambdaNow, dispStateNew)
-    priorDispAgeNew <- CalcPriorDispAge(dispStateNew)
+    #priorDispAgeNew <- CalcPriorDispAge(dispStateNew)
+    priorDispAgeNew <- CalcPriorDispAge(dispStateNew, sexFemNow)
     dispPostAgeNew <- likeDispAgeNew + priorDispAgeNew
     
     likeDispParNew <- CalcLikeDispPars(lambdaNow, idIMnow, likeDispAgeNew)
@@ -514,7 +521,7 @@ RunMCMC <- function(sim) {
     aveJumps <- jumpMat
     aveJumpsLam <- lambdaJump
   }
-
+print(startTime - Sys.time())
   return(list(pars = parMat, parPost = parPostVec, agePost = agePostMat,  # why don't we return the lambda related objects?
               sexEst = sexMat, dispState = dispStateMat, 
               jumpsMort = aveJumps, jumpsDisp = aveJumpsLam, parsDisp = parDispMat))
