@@ -114,7 +114,7 @@ rm(list = setdiff(ls(), c("out", "nsim", "niter", "model", "shape", "ncovs", "la
 if ("fernando" %in% list.files("/Users/")) {
   save.image("/Users/fernando/FERNANDO/PROJECTS/1.ACTIVE/JuliaLions/results/simOut.Rdata")
 } else {
-  save.image("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/results/simOutTestPDF.Rdata")
+  save.image("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/results/simHwangOut1.Rdata")
 }
 
  

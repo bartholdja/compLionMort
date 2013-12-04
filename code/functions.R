@@ -160,6 +160,7 @@ CalcPriorMortPar <- function(th) {
              rep(defPars$priorSd, each = ncovs), 
              low = rep(defPars$low, each = ncovs), log = TRUE))
 }
+
 # Age distribution
 CalcPriorAgeDist <- function(x, th) {   # Prior age distr.: S(x, prior theta) / ex(prior theta), standardised so that sums to 1
   log(CalcSurv(th, x) / exPrior)
@@ -212,7 +213,7 @@ CalcLikeDispPars <- function(lambda, idIM, likeDispAge) {
 }
 # Ages at death
 CalcLikeAges <- function(x, th, logPdf, dispState) {
-  like <- logPdf - dispState * (detectPar * (x - ageToLast)) 
+  like <- logPdf - (1 - dispState) * (detectPar * (x - ageToLast)) 
   return(like)
 }
 
@@ -320,9 +321,9 @@ RunMCMC <- function(sim) {
   
   # Individual runs:
   for (iter in 1:niter) {
+    
     # 1. Propose mortality parameters:
     for (pp in 1:npars) {
-      
       thetaNew <- thetaNow
       thetaNew[pp] <- rtnorm(1, thetaNow[pp], jumpMat[pp], # draws new par from truncated normal with mean = previous par value and sd = jump
                              low = rep(defPars$low, each = ncovs)[pp])
@@ -521,7 +522,7 @@ RunMCMC <- function(sim) {
     aveJumps <- jumpMat
     aveJumpsLam <- lambdaJump
   }
-print(startTime - Sys.time())
+(Sys.time() - startTime)
   return(list(pars = parMat, parPost = parPostVec, agePost = agePostMat,  # why don't we return the lambda related objects?
               sexEst = sexMat, dispState = dispStateMat, 
               jumpsMort = aveJumps, jumpsDisp = aveJumpsLam, parsDisp = parDispMat))
