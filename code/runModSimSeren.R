@@ -9,12 +9,13 @@ if ("fernando" %in% list.files("/Users/")) {
   setwd("/Users/Viktualia/Documents/GitHub/compLionMort")
   load("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/data/serengeti/simDatSeren.Rdata")
   #load("N:/Barthold/simDatSeren.Rdata")
-  #setwd("N:/Barthold)
+  #setwd("N:/Barthold")
 }
 
 
 # Source functions:
 source("code/functions.R")
+#source("functions.R")
 
 # want diagnostic plots?:
 plotInd <- FALSE
@@ -112,19 +113,21 @@ UpdJumps <- FALSE
 jumpMatStart <- outJump$jumpsMort
 lambdaJump <- outJump$jumpsDisp
 rm("outJump")
-niter <- 40000
-burnin <- 20001
-thin <- 40
+niter <- 100000
+burnin <- 10001
+thin <- 50
 keep <- seq(burnin, niter, thin)
 
-nsim <- 2
-ncpus <- 2
+nsim <- 4
+ncpus <- 4
 require(snowfall)
 sfInit(parallel = TRUE, cpus = ncpus)
 sfExport(list = c(ls(), ".Random.seed"))
 sfLibrary(msm, warn.conflicts = FALSE)
+startTime <- Sys.time()
 out <- sfClusterApplyLB(1:nsim, RunMCMC)
 sfStop()
+(Sys.time() - startTime)
 
 rm(list = setdiff(ls(), c("out", "nsim", "niter", "model", "shape", "ncovs", 
                           "names", "npars", 
@@ -133,6 +136,6 @@ rm(list = setdiff(ls(), c("out", "nsim", "niter", "model", "shape", "ncovs",
 if ("fernando" %in% list.files("/Users/")) {
   save.image("/Users/fernando/FERNANDO/PROJECTS/1.ACTIVE/JuliaLions/results/outputHwang04Nov2.Rdata")
 } else {
-  #save.image("N:/Barthold/simSerenOut3.Rdata")
-  save.image("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/results/simSerenOut4.Rdata")
+  save.image("N:/Barthold/simSerenOut15.Rdata")
+  #save.image("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/results/simSerenOut4.Rdata")
 }

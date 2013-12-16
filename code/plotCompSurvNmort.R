@@ -5,40 +5,15 @@ if ("fernando" %in% list.files("/Users/")) {
   load("/Users/fernando/FERNANDO/PROJECTS/1.ACTIVE/JuliaLions/results/outputSeren1.Rdata")
 }else {
   setwd("/Users/Viktualia/Documents/GitHub/compLionMort")
-  load("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/results/simSerenOut14.Rdata")
+  load("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/results/simSerenOut15.Rdata")
+  load("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/data/serengeti/simDatSeren.Rdata")
 }
 
 library(RColorBrewer)
 # Source functions:
 source("code/functions.R")
 
-pdf("results/traces.pdf", width = 15, height = 10)
-par(mfrow = c(ncovs, defPars$length))
-for (i in 1:npars) {
-  for (sim in 1:nsim) {
-    if (sim == 1) plot(out[[sim]]$pars[ ,i], type = 'l', main = thetaNames[i])
-    if (sim != 1) lines(out[[sim]]$pars[ ,i], col = brewer.pal(nsim + 2, "Dark2")[sim])
-  }
-}
-dev.off()
-
-pdf("results/parDens005.pdf", width = 12, height = 5)
-par(mfrow = c(1, defPars$length))
-for(j in 1:nsim){
-for (i in 1:defPars$length) {
-  plot(density(out[[j]]$pars[-c(1:1000), i]), type = 'l', 
-       main = c("a0", "a1", "c", "b0", "b1") [i], 
-       col = brewer.pal(nsim + 2, "Dark2")[1],
-       lwd = 3, xlim = range(out[[j]]$pars[-c(1:1000), i]),
-       ylim = c(0, max (c(max(density(out[[j]]$pars[-c(1:1000), i])[[2]]), 
-                          max(density(out[[j]]$pars[-c(1:1000), 
-                                              i+defPars$length])[[2]])))))
-  lines(density(out[[j]]$pars[-c(1:1000), i + 5]), col = brewer.pal(nsim + 2, "Dark2")[2], lwd = 3)
-  if (i == defPars$length) legend("topright", legend = c("female", "male"), 
-                                  col = c(brewer.pal(nsim + 2, "Dark2")[1],brewer.pal(nsim + 2, "Dark2")[2]), lwd = c(3, 3))
-}
-}
-dev.off()
+ommit <- 10000
 
 
 # Calculate mean and quantiles for parameter estimates:
@@ -49,7 +24,7 @@ class(thFem) <- c(model, shape)
 class(thMal) <- class(thFem)
 
 
-keep <- seq(1000, niter, 20)
+keep <- seq(ommit, niter, 20)
 parMat <- out[[1]]$pars[keep, ]
 for (i in 2:nsim) {
   parMat <- rbind(parMat, out[[i]]$pars[keep, ])
@@ -93,7 +68,7 @@ yMortFem <- CalcMort(thFem, xv)
 yMortMal <- CalcMort(thMal, xv)
 
 
-pdf("/Users/Viktualia/Dropbox/Projects/008_LionSexDiffMort/JuliaLions/plots/simSeren7.pdf", height = 10)
+pdf("/Users/Viktualia/Documents/GitHub/compLionMort/results/survNmortSimSeren.pdf", height = 10)
 par(mfrow = c(2, 1), mar = c(4, 5, 1, 1), family = 'serif')
 plot(range(xv[1:max(rangesSurv)]), c(0, 1), col = NA, frame.plot = FALSE, 
      xlab = "", ylab = expression(paste("Survival, ", italic(S(x)))))
