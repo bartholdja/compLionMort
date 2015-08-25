@@ -13,7 +13,7 @@ male lions disperse at maturity and are therefore commonly lost for data
 collection. In order to study age- and sex-specific survival, we therefore had to develop
 a method to infer survival from lifespan data that have a strong sex-bias in right-censored 
 records. Our model takes into account sex- and age-specific probabilities of dispersal when 
-proposing unobserved ages at death (following the method of Colchero and Clark 2012 J Anim Ecol).
+proposing Siler mortality parameters.
 
 
 
