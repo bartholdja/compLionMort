@@ -15,5 +15,7 @@ a method to infer survival from lifespan data that have a strong sex-bias in rig
 records. Our model takes into account sex- and age-specific probabilities of dispersal when 
 proposing Siler mortality parameters.
 
+To run the model download runsModel.R, fcts01.R, and datSH.txt. The script runsModel.R sourses fcts01.R and reads in the data from datSH.txt.
+
 
 
